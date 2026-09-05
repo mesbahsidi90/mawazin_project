@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta
+      name="description"
+      content="نموذج تشغيلي لتسجيل هدر الطعام ومتابعة كلفته ومحاكاة الميزان الذكي."
+    />
+    <title>ميزان | تقليل هدر المطابخ</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="التنقل الرئيسي">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" role="img">
+              <path d="M8 7h16v4H8zM6 12h20l-2 13H8z" />
+              <path d="M12 16h8v5h-8z" class="brand-mark-cut" />
+            </svg>
+          </span>
+          <span>
+            <strong>ميزان</strong>
+            <small>تقليل هدر المطابخ</small>
+          </span>
+        </div>
+
+        <nav class="desktop-nav">
+          <button class="nav-item active" data-view-target="worker" type="button">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" /></svg>
+            </span>
+            <span>تطبيق العامل</span>
+          </button>
+          <button class="nav-item" data-view-target="dashboard" type="button">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 19V9h4v10zm6 0V4h4v15zm6 0v-7h4v7z" /></svg>
+            </span>
+            <span>لوحة المدير</span>
+          </button>
+          <button class="nav-item" data-view-target="simulator" type="button">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M5 6h14v13H5zM8 10h8M9 15h6" /></svg>
+            </span>
+            <span>محاكي الميزان</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-note">
+          <span class="eyebrow">نسخة تجريبية</span>
+          <p>البيانات تحفظ محليًا على هذا الجهاز لأغراض الاختبار.</p>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="viewEyebrow">محطة التسجيل 01</p>
+            <h1 id="viewTitle">تسجيل الهدر</h1>
+          </div>
+          <div class="topbar-meta">
+            <div class="site-chip">
+              <span class="site-chip-dot" aria-hidden="true"></span>
+              <span>مطبخ الجزائر الوسطى</span>
+            </div>
+            <div class="clock" id="clock" aria-label="الوقت الحالي"></div>
+          </div>
+        </header>
+
+        <section class="view active" id="workerView" data-view="worker">
+          <div class="worker-grid">
+            <article class="card scale-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">القراءة المباشرة</p>
+                  <h2>الميزان الذكي</h2>
+                </div>
+                <span class="status-pill online" id="workerConnection">
+                  <span class="pulse-dot" aria-hidden="true"></span>
+                  متصل
+                </span>
+              </div>
+
+              <div class="scale-visual" id="workerScaleVisual">
+                <div class="scale-platform" aria-hidden="true"></div>
+                <div class="scale-screen" aria-live="polite">
+                  <span class="scale-status" id="weightStatus">قراءة مستقرة</span>
+                  <div class="weight-reading">
+                    <strong id="liveWeight">2.480</strong>
+                    <span>كغ</span>
+                  </div>
+                  <div class="weight-meta">
+                    <span>الدقة ± 10 غ</span>
+                    <span id="lastSignal">الآن</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="scale-actions">
+                <button class="button ghost" id="tareButton" type="button">تصفير الميزان</button>
+                <button class="text-button" data-view-target="simulator" type="button">
+                  افتح المحاكي
+                  <span aria-hidden="true">←</span>
+                </button>
+              </div>
+            </article>
+
+            <article class="card record-card">
+              <div class="card-head compact">
+                <div>
+                  <p class="eyebrow">خطوة واحدة</p>
+                  <h2>ما الذي تم التخلص منه؟</h2>
+                </div>
+                <span class="step-badge">01</span>
+              </div>
+
+              <form id="wasteForm">
+                <fieldset class="field-group meal-fieldset">
+                  <legend>الوجبة</legend>
+                  <div class="segmented-control" id="mealControl">
+                    <label><input type="radio" name="meal" value="breakfast" /><span>فطور</span></label>
+                    <label><input type="radio" name="meal" value="lunch" checked /><span>غداء</span></label>
+                    <label><input type="radio" name="meal" value="dinner" /><span>عشاء</span></label>
+                  </div>
+                </fieldset>
+
+                <div class="form-row">
+                  <label class="input-label">
+                    <span>الصنف</span>
+                    <select id="foodSelect" required></select>
+                  </label>
+                  <label class="input-label">
+                    <span>مرحلة الهدر</span>
+                    <select id="stageSelect" required></select>
+                  </label>
+                </div>
+
+                <label class="input-label">
+                  <span>السبب المرجح</span>
+                  <select id="reasonSelect" required></select>
+                </label>
+
+                <div class="cost-preview" aria-live="polite">
+                  <div>
+                    <span>الوزن المسجل</span>
+                    <strong id="previewWeight">2.480 كغ</strong>
+                  </div>
+                  <div>
+                    <span>الخسارة التقديرية</span>
+                    <strong id="previewCost">645 دج</strong>
+                  </div>
+                </div>
+
+                <button class="button primary record-button" id="recordButton" type="submit">
+                  <span>سجّل الهدر</span>
+                  <span class="button-shortcut">Enter</span>
+                </button>
+                <p class="form-hint" id="recordHint">اختر الصنف والسبب، ثم أكد القراءة المستقرة.</p>
+              </form>
+            </article>
+
+            <article class="card recent-card">
+              <div class="card-head compact">
+                <div>
+                  <p class="eyebrow">آخر النشاط</p>
+                  <h2>السجلات الأخيرة</h2>
+                </div>
+                <button class="text-button" data-view-target="dashboard" type="button">عرض الكل</button>
+              </div>
+              <div class="recent-list" id="workerRecentList"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="dashboardView" data-view="dashboard" hidden>
+          <div class="dashboard-toolbar">
+            <div class="period-control" role="group" aria-label="الفترة الزمنية">
+              <button type="button" data-period="1">اليوم</button>
+              <button type="button" data-period="7" class="active">7 أيام</button>
+              <button type="button" data-period="30">30 يومًا</button>
+            </div>
+            <div class="toolbar-actions">
+              <button class="button ghost small" id="exportButton" type="button">تصدير CSV</button>
+              <button class="button ghost small" id="resetDemoButton" type="button">استعادة البيانات</button>
+            </div>
+          </div>
+
+          <div class="kpi-grid">
+            <article class="kpi-card accent-teal">
+              <div class="kpi-top"><span>إجمالي الهدر</span><span class="trend positive" id="wasteTrend">−12%</span></div>
+              <strong><span id="kpiWeight">0.0</span> <small>كغ</small></strong>
+              <p id="kpiWeightNote">مقابل خط الأساس</p>
+            </article>
+            <article class="kpi-card accent-amber">
+              <div class="kpi-top"><span>الخسارة المقدرة</span><span class="mini-icon">دج</span></div>
+              <strong><span id="kpiCost">0</span> <small>دج</small></strong>
+              <p>وفق تكلفة الصنف لكل كيلوغرام</p>
+            </article>
+            <article class="kpi-card accent-coral">
+              <div class="kpi-top"><span>هدر يمكن تجنبه</span><span class="mini-icon">%</span></div>
+              <strong><span id="kpiAvoidable">0</span><small>%</small></strong>
+              <p id="kpiAvoidableNote">من الوزن المسجل</p>
+            </article>
+            <article class="kpi-card accent-blue">
+              <div class="kpi-top"><span>عمليات التسجيل</span><span class="mini-icon">#</span></div>
+              <strong><span id="kpiEntries">0</span> <small>عملية</small></strong>
+              <p id="kpiEntriesNote">خلال الفترة المحددة</p>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="card chart-card daily-chart-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">الاتجاه</p>
+                  <h2>الهدر اليومي</h2>
+                </div>
+                <div class="chart-legend"><span></span> كغ / يوم</div>
+              </div>
+              <div class="bar-chart" id="dailyChart" aria-label="رسم الهدر اليومي"></div>
+            </article>
+
+            <article class="card chart-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">قاعدة 80/20</p>
+                  <h2>أكثر الأصناف هدرًا</h2>
+                </div>
+              </div>
+              <div class="pareto-list" id="paretoList"></div>
+            </article>
+
+            <article class="card insight-card">
+              <div class="card-head compact">
+                <div>
+                  <p class="eyebrow">قرار هذا الأسبوع</p>
+                  <h2>إجراء مقترح</h2>
+                </div>
+                <span class="spark-icon" aria-hidden="true">↗</span>
+              </div>
+              <div class="insight-main">
+                <span class="insight-label" id="insightTag">فرصة سريعة</span>
+                <h3 id="insightTitle">اخفض كمية الصنف الأعلى هدرًا في الدفعة التالية.</h3>
+                <p id="insightText"></p>
+              </div>
+              <div class="saving-box">
+                <span>توفير محتمل</span>
+                <strong id="savingPotential">0 دج</strong>
+                <small>عند خفض الهدر القابل للتجنب 25%</small>
+              </div>
+            </article>
+
+            <article class="card stage-card">
+              <div class="card-head compact">
+                <div>
+                  <p class="eyebrow">مصدر المشكلة</p>
+                  <h2>الهدر حسب المرحلة</h2>
+                </div>
+              </div>
+              <div class="stage-content">
+                <div class="donut" id="stageDonut" aria-label="نسب الهدر حسب المرحلة">
+                  <div><strong id="donutTotal">0</strong><span>كغ</span></div>
+                </div>
+                <div class="stage-legend" id="stageLegend"></div>
+              </div>
+            </article>
+
+            <article class="card table-card">
+              <div class="card-head compact">
+                <div>
+                  <p class="eyebrow">سجل العمليات</p>
+                  <h2>أحدث التسجيلات</h2>
+                </div>
+                <span class="muted" id="tableCount">0 سجل</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>الوقت</th>
+                      <th>الصنف</th>
+                      <th>المرحلة</th>
+                      <th>السبب</th>
+                      <th>الوزن</th>
+                      <th>التكلفة</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recordsTable"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="simulatorView" data-view="simulator" hidden>
+          <div class="simulator-grid">
+            <article class="card simulator-main-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">جهاز افتراضي</p>
+                  <h2>محاكي الميزان</h2>
+                </div>
+                <span class="status-pill online" id="simConnectionPill"><span class="pulse-dot"></span> متصل</span>
+              </div>
+
+              <div class="sim-device" id="simDevice">
+                <div class="sim-pan">
+                  <div class="food-load" id="foodLoad"><span></span><span></span><span></span></div>
+                </div>
+                <div class="sim-body">
+                  <div class="sim-display">
+                    <span id="simStateLabel">STABLE</span>
+                    <strong id="simWeight">2.480</strong>
+                    <small>kg</small>
+                  </div>
+                  <div class="sim-lights"><span class="light power"></span><span class="light signal"></span></div>
+                </div>
+              </div>
+
+              <label class="range-label" for="weightRange">
+                <span>حمولة الميزان</span>
+                <strong id="rangeValue">2.480 كغ</strong>
+              </label>
+              <input id="weightRange" class="weight-range" type="range" min="0" max="20" step="0.01" value="2.48" />
+
+              <div class="preset-row" aria-label="إضافات سريعة للوزن">
+                <button type="button" data-add-weight="0.25">+ 250 غ</button>
+                <button type="button" data-add-weight="0.5">+ 500 غ</button>
+                <button type="button" data-add-weight="1">+ 1 كغ</button>
+                <button type="button" data-add-weight="2">+ 2 كغ</button>
+                <button type="button" data-set-weight="0">تفريغ</button>
+              </div>
+
+              <button class="button primary wide" id="sendToWorkerButton" type="button">
+                ثبّت القراءة وأرسلها لتطبيق العامل
+              </button>
+            </article>
+
+            <aside class="simulator-side">
+              <article class="card device-controls-card">
+                <div class="card-head compact">
+                  <div>
+                    <p class="eyebrow">حالة الجهاز</p>
+                    <h2>أدوات الاختبار</h2>
+                  </div>
+                </div>
+                <div class="control-list">
+                  <div class="control-item">
+                    <div><strong>الاتصال</strong><span>إرسال القراءات إلى التطبيق</span></div>
+                    <button class="switch active" id="connectionToggle" type="button" role="switch" aria-checked="true"><span></span></button>
+                  </div>
+                  <div class="control-item">
+                    <div><strong>ثبات القراءة</strong><span>محاكاة اهتزاز الحمولة</span></div>
+                    <button class="switch active" id="stabilityToggle" type="button" role="switch" aria-checked="true"><span></span></button>
+                  </div>
+                </div>
+                <div class="device-meta">
+                  <div><span>معرّف الجهاز</span><strong>SC-DZ-001</strong></div>
+                  <div><span>آخر إشارة</span><strong id="deviceLastSignal">الآن</strong></div>
+                  <div><span>البطارية</span><strong>86%</strong></div>
+                </div>
+              </article>
+
+              <article class="card event-card">
+                <div class="card-head compact">
+                  <div>
+                    <p class="eyebrow">سجل حي</p>
+                    <h2>أحداث المحاكي</h2>
+                  </div>
+                  <span class="live-badge">LIVE</span>
+                </div>
+                <div class="event-log" id="eventLog" aria-live="polite"></div>
+              </article>
+            </aside>
+          </div>
+        </section>
+      </main>
+
+      <nav class="mobile-nav" aria-label="التنقل الرئيسي للهاتف">
+        <button class="active" data-view-target="worker" type="button"><span>⚖</span>التسجيل</button>
+        <button data-view-target="dashboard" type="button"><span>▥</span>المؤشرات</button>
+        <button data-view-target="simulator" type="button"><span>⌁</span>المحاكي</button>
+      </nav>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite">
+      <span class="toast-icon" aria-hidden="true">✓</span>
+      <div><strong id="toastTitle">تم التسجيل</strong><p id="toastText"></p></div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
