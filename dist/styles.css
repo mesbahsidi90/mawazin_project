@@ -29,6 +29,33 @@
   --radius-lg: 22px;
 }
 
+[hidden] { display: none !important; }
+.login-page { min-height:100vh; display:grid; place-items:center; padding:24px; background:radial-gradient(ellipse at top right,#18534f,transparent 65%),#071a1d; }
+.login-card { width:min(100%,510px); padding:38px; }
+.login-card h1 { font-size:2rem; line-height:1.5; letter-spacing:0; }
+.login-card p { line-height:1.9; }
+.login-card .button { margin-top:12px; text-decoration:none; }
+.login-card hr { border:0; border-top:1px solid var(--slate-200); margin:24px 0; }
+.connection-bar { display:flex; gap:14px; flex-wrap:wrap; align-items:center; padding:12px 0; border-bottom:1px solid var(--slate-200); font-size:.875rem; }
+.notice { background:#e3f3ef; border-right:3px solid #0f766e; padding:12px; font-size:.875rem; line-height:1.8; }
+.input-label input { width:100%; min-height:46px; border:1px solid var(--slate-300); border-radius:10px; padding:10px 12px; background:#fff; color:var(--ink-900); }
+.report-card,.settings-card { padding:24px; }
+.filter-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:end; margin-top:24px; }
+.filter-grid .input-label { margin:0; }
+.settings-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr); gap:20px; }
+.settings-side { display:grid; gap:20px; align-content:start; }
+.settings-card h2 { margin-top:4px; }
+.settings-card p { line-height:1.8; }
+.price-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:20px 0; }
+.pagination { display:flex; align-items:center; justify-content:center; gap:18px; margin-top:20px; }
+.system-list { line-height:1.8; }.system-list dt { font-weight:bold; margin-top:14px; }.system-list dd { margin:4px 0 0; color:var(--slate-600); }
+.error-text { color:#a12222; }.empty-state { padding:35px; text-align:center; white-space:normal; }
+.note-cell { white-space:normal; min-width:140px; max-width:260px; overflow-wrap:anywhere; }
+.sidebar-note #accountLabel { overflow-wrap:anywhere; letter-spacing:0; }
+.report-summary { padding:16px; background:var(--canvas); line-height:1.8; }
+#manualWeight { font-size:2rem; direction:ltr; font-variant-numeric:tabular-nums; }
+#mobileLogout { display:none; }
+
 * {
   box-sizing: border-box;
 }
@@ -1856,4 +1883,42 @@ td strong {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Regular operational labels must remain readable in a busy kitchen. */
+.nav-item,.button,.text-button,select,.field-group legend,.input-label>span,
+.segmented-control span,.period-control button,.kpi-top,th,td,.pareto-label,
+.stage-row,.control-item strong,.range-label,.status-pill,.recent-item strong,
+.recent-weight,.device-meta>div,.preset-row button { font-size:.875rem; }
+.eyebrow,.form-hint,.kpi-card p,.recent-item small,.device-meta strong,
+.control-item span,.event-item strong,.event-item span,.event-item time { font-size:.75rem; }
+.bar-day,.bar-value { font-size:.75rem; }
+.worker-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.dashboard-grid > *, .worker-grid > *, .settings-grid > * { min-width:0; }
+.recent-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.topbar h1,.card-head h2 { letter-spacing:0; }
+.sidebar { overflow-y:auto; }
+@media(max-width:1000px) { .settings-grid,.worker-grid {grid-template-columns:1fr;} .filter-grid {grid-template-columns:repeat(2,minmax(0,1fr));} }
+@media(max-width:640px) {
+  .mobile-nav {grid-template-columns:repeat(5,minmax(0,1fr));}
+  .mobile-nav button {font-size:.75rem;}
+  #mobileLogout {display:inline-flex;}
+  .filter-grid,.settings-grid,.recent-list {grid-template-columns:1fr;}
+  .login-card {padding:24px;}
+  .login-card h1 {font-size:1.65rem;}
+  .report-card .card-head {flex-direction:column;}
+  .topbar-meta {max-width:48%;}
+  .kpi-top {flex-wrap:wrap; gap:6px;}
+}
+@media print {
+  @page {size:A4 landscape; margin:12mm;}
+  body {background:white; color:black;}
+  .sidebar,.topbar,.mobile-nav,.connection-bar,.notice,.toast,.filter-grid,.pagination,.toolbar-actions,#reportError {display:none!important;}
+  .view:not(#reportsView),#loginPanel {display:none!important;}
+  .main-content {margin:0;padding:0;}
+  .card {box-shadow:none;border:0;padding:0;}
+  .table-wrap {overflow:visible;}
+  th,td {font-size:10pt;white-space:normal;padding:6px;}
+  tr {break-inside:avoid;}
+  thead {display:table-header-group;}
 }

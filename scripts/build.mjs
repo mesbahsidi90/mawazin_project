@@ -1,0 +1,12 @@
+import {readFile,mkdir,writeFile,cp} from 'node:fs/promises';
+const files={'index.html':'text/html; charset=utf-8','styles.css':'text/css; charset=utf-8','app.js':'application/javascript; charset=utf-8','domain.js':'application/javascript; charset=utf-8','outbox.js':'application/javascript; charset=utf-8','sw.js':'application/javascript; charset=utf-8'};
+const assets={};
+for(const [name,type] of Object.entries(files)) assets['/'+name]={type,body:await readFile('dist/'+name,'utf8')};
+const domain=(await readFile('dist/domain.js','utf8')).replaceAll('export ','');
+const worker=(await readFile('server/worker.js','utf8')).replace(/^import .*;\n/,'');
+await mkdir('dist/server',{recursive:true});
+await mkdir('dist/.openai',{recursive:true});
+await writeFile('dist/server/index.js',domain+'\n'+worker+'\nexport default createWorker('+JSON.stringify(assets)+');\n');
+await cp('.openai/hosting.json','dist/.openai/hosting.json');
+await cp('drizzle','dist/.openai/drizzle',{recursive:true});
+console.log('Worker and migrations built in dist/server and dist/.openai');

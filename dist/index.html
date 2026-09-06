@@ -8,11 +8,24 @@
       name="description"
       content="نموذج تشغيلي لتسجيل هدر الطعام ومتابعة كلفته ومحاكاة الميزان الذكي."
     />
-    <title>ميزان | تقليل هدر المطابخ</title>
+    <title>موازين | تقليل هدر المطابخ</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <section id="loginPanel" class="login-page" aria-labelledby="loginTitle">
+      <article class="card login-card">
+        <p class="eyebrow">موازين / مساحة المطبخ</p>
+        <h1 id="loginTitle">كل تسجيل، خطوة لتقليل الهدر.</h1>
+        <p>ادخل إلى سجلاتك وتقاريرك وإعدادات مطبخك. تحفظ السجلات مركزيًا في وضع الحساب.</p>
+        <a class="button primary wide" href="/signin-with-chatgpt?return_to=%2F" target="_top">الدخول باستخدام ChatGPT</a>
+        <button id="resumeSession" class="button ghost wide" type="button">متابعة الحساب الحالي / إعادة الاتصال</button>
+        <p id="loginStatus" role="status">جارٍ التحقق من الجلسة…</p>
+        <hr />
+        <button id="demoLogin" class="button ghost wide" type="button">استكشاف النسخة التجريبية دون حساب</button>
+        <p class="form-hint">وضع التجربة محلي ومنفصل عن حسابك. لا نطلب كلمة مرور ولا نحفظها هنا.</p>
+      </article>
+    </section>
+    <div class="app-shell" id="appShell" hidden>
       <aside class="sidebar" aria-label="التنقل الرئيسي">
         <div class="brand">
           <span class="brand-mark" aria-hidden="true">
@@ -22,7 +35,7 @@
             </svg>
           </span>
           <span>
-            <strong>ميزان</strong>
+            <strong>موازين</strong>
             <small>تقليل هدر المطابخ</small>
           </span>
         </div>
@@ -46,11 +59,14 @@
             </span>
             <span>محاكي الميزان</span>
           </button>
+          <button class="nav-item" data-view-target="reports" type="button"><span class="nav-icon" aria-hidden="true">▤</span><span>التقارير</span></button>
+          <button class="nav-item" data-view-target="settings" type="button"><span class="nav-icon" aria-hidden="true">⚙</span><span>الإعدادات</span></button>
         </nav>
 
         <div class="sidebar-note">
-          <span class="eyebrow">نسخة تجريبية</span>
-          <p>البيانات تحفظ محليًا على هذا الجهاز لأغراض الاختبار.</p>
+          <span class="eyebrow" id="accountLabel">الحساب</span>
+          <p id="storageLabel">التخزين المركزي</p>
+          <button id="logoutButton" class="text-button" type="button">تسجيل الخروج</button>
         </div>
       </aside>
 
@@ -63,18 +79,25 @@
           <div class="topbar-meta">
             <div class="site-chip">
               <span class="site-chip-dot" aria-hidden="true"></span>
-              <span>مطبخ الجزائر الوسطى</span>
+              <span id="siteNameLabel">مطبخ الجزائر الوسطى</span>
             </div>
             <div class="clock" id="clock" aria-label="الوقت الحالي"></div>
           </div>
         </header>
+        <div class="connection-bar" role="status" aria-live="polite">
+          <span id="networkLabel">الإنترنت: جارٍ التحقق</span>
+          <span id="syncLabel">لا توجد مزامنة بعد</span>
+          <button id="syncButton" class="text-button" type="button">مزامنة الآن</button>
+          <button id="mobileLogout" class="text-button" type="button">خروج</button>
+        </div>
+        <p class="notice" id="dataScope">سجلات هذا الحساب فقط؛ مشاركة الفريق ليست مفعلة.</p>
 
         <section class="view active" id="workerView" data-view="worker">
           <div class="worker-grid">
             <article class="card scale-card">
               <div class="card-head">
                 <div>
-                  <p class="eyebrow">القراءة المباشرة</p>
+                  <p class="eyebrow">مصدر الوزن</p>
                   <h2>الميزان الذكي</h2>
                 </div>
                 <span class="status-pill online" id="workerConnection">
@@ -83,7 +106,9 @@
                 </span>
               </div>
 
-              <div class="scale-visual" id="workerScaleVisual">
+              <label class="input-label"><span>طريقة الإدخال</span><select id="inputMode"><option value="manual">وزن يدوي من ميزان خارجي</option><option value="simulator">محاكي — بيانات اختبار</option></select></label>
+              <label class="input-label" id="manualField"><span>الوزن الصافي (كغ) بعد طرح الوعاء</span><input id="manualWeight" type="number" min="0.02" max="20" step="0.001" placeholder="0.000" /></label>
+              <div class="scale-visual" id="workerScaleVisual" hidden>
                 <div class="scale-platform" aria-hidden="true"></div>
                 <div class="scale-screen" aria-live="polite">
                   <span class="scale-status" id="weightStatus">قراءة مستقرة</span>
@@ -92,7 +117,7 @@
                     <span>كغ</span>
                   </div>
                   <div class="weight-meta">
-                    <span>الدقة ± 10 غ</span>
+                    <span>قراءة محاكية وليست جهازًا حقيقيًا</span>
                     <span id="lastSignal">الآن</span>
                   </div>
                 </div>
@@ -142,6 +167,7 @@
                   <select id="reasonSelect" required></select>
                 </label>
 
+                <label class="input-label"><span>ملاحظة (اختياري)</span><input id="recordNote" maxlength="300" placeholder="مثل: فائض آخر دفعة من الغداء" /></label>
                 <div class="cost-preview" aria-live="polite">
                   <div>
                     <span>الوزن المسجل</span>
@@ -155,7 +181,6 @@
 
                 <button class="button primary record-button" id="recordButton" type="submit">
                   <span>سجّل الهدر</span>
-                  <span class="button-shortcut">Enter</span>
                 </button>
                 <p class="form-hint" id="recordHint">اختر الصنف والسبب، ثم أكد القراءة المستقرة.</p>
               </form>
@@ -183,7 +208,7 @@
             </div>
             <div class="toolbar-actions">
               <button class="button ghost small" id="exportButton" type="button">تصدير CSV</button>
-              <button class="button ghost small" id="resetDemoButton" type="button">استعادة البيانات</button>
+              <button class="button ghost small" id="resetDemoButton" type="button">استعادة بيانات التجربة</button>
             </div>
           </div>
 
@@ -376,12 +401,52 @@
             </aside>
           </div>
         </section>
+        <section class="view" id="reportsView" data-view="reports" hidden>
+          <article class="card report-card">
+            <div class="card-head"><div><p class="eyebrow">تقارير قابلة للمراجعة</p><h2>سجل الهدر والتحليل</h2></div><div class="toolbar-actions"><button id="reportExport" class="button ghost" type="button">تصدير CSV</button><button id="reportPrint" class="button primary" type="button">طباعة / PDF</button></div></div>
+            <form id="reportFilters" class="filter-grid">
+              <label class="input-label"><span>من تاريخ</span><input id="reportStart" type="date" required /></label>
+              <label class="input-label"><span>إلى تاريخ</span><input id="reportEnd" type="date" required /></label>
+              <label class="input-label"><span>الصنف</span><select id="reportFood"></select></label>
+              <label class="input-label"><span>المرحلة</span><select id="reportStage"></select></label>
+              <label class="input-label"><span>المصدر</span><select id="reportSource"><option value="manual">قياسات يدوية</option><option value="simulator">المحاكي فقط</option><option value="">كل المصادر</option></select></label>
+              <button class="button primary" type="submit">تطبيق الفلاتر</button>
+            </form>
+            <p id="reportError" class="error-text" role="alert"></p>
+            <p id="reportSummary" class="report-summary"></p>
+            <p id="reportCaption" class="form-hint">الفترة حسب توقيت الجزائر. السجلات المعلقة غير مؤكدة مركزيًا، والتكاليف تقديرية.</p>
+            <div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الصنف</th><th>المرحلة</th><th>السبب</th><th>كغ</th><th>دج</th><th>المصدر / الحفظ</th><th>ملاحظة</th></tr></thead><tbody id="reportRows"></tbody></table></div>
+            <div class="pagination"><button id="reportPrev" type="button" class="button ghost">السابق</button><span id="reportPage"></span><button id="reportNext" type="button" class="button ghost">التالي</button></div>
+          </article>
+        </section>
+        <section class="view" id="settingsView" data-view="settings" hidden>
+          <div class="settings-grid">
+            <article class="card settings-card">
+              <p class="eyebrow">إعدادات الحساب</p><h2>المطبخ والتكاليف</h2>
+              <form id="settingsForm">
+                <label class="input-label"><span>اسم المطبخ</span><input id="settingName" maxlength="80" required /></label>
+                <label class="input-label"><span>حد التنبيه اليومي للهدر (كغ)</span><input id="settingTarget" type="number" min="0" max="10000" step="0.1" required /></label>
+                <p class="form-hint">العملة: الدينار الجزائري · التقارير: توقيت الجزائر</p>
+                <h3>تكلفة الكيلوغرام بالدينار</h3><p class="form-hint">أسعار افتراضية للتجربة؛ أدخل تكلفة مطبخك. لا نعيد تسعير السجلات المؤكدة السابقة. المعلّق يُسعّر عند المزامنة.</p>
+                <div id="priceInputs" class="price-grid"></div>
+                <button id="settingsSave" class="button primary wide" type="submit">حفظ الإعدادات</button>
+                <p id="settingsStatus" role="status"></p>
+              </form>
+            </article>
+            <div class="settings-side">
+              <article class="card settings-card"><p class="eyebrow">الاتصال والبيانات</p><h2>حالة النظام</h2><dl class="system-list"><dt>مصدر الميزان</dt><dd>إدخال يدوي أو محاكي؛ لم يربط جهاز حقيقي بعد</dd><dt>التخزين</dt><dd id="systemStorage"></dd><dt>آخر مزامنة ناجحة</dt><dd id="lastSync">لم تتم بعد</dd><dt>العمل دون إنترنت</dt><dd id="offlineReadiness">يمكن تسجيل بيانات معلقة خلال الجلسة الحالية؛ الدخول يحتاج الإنترنت.</dd></dl><button id="checkConnection" class="button ghost wide" type="button">فحص الاتصال بالخادم</button></article>
+              <article class="card settings-card"><p class="eyebrow">قابلية النقل</p><h2>نسخة من بياناتك</h2><p>تنزيل جميع السجلات الحالية والإعدادات وعمليات الإرسال المعلقة. لا تتضمن النسخة أسرار الدخول.</p><button id="backupButton" class="button ghost wide" type="button">تنزيل نسخة JSON</button><p class="form-hint">السجلات القديمة من النسخة الأولى لم تُحذف من متصفحك.</p><button id="legacyBackup" class="text-button" type="button">تنزيل بيانات النسخة الأولى</button></article>
+            </div>
+          </div>
+        </section>
       </main>
 
       <nav class="mobile-nav" aria-label="التنقل الرئيسي للهاتف">
         <button class="active" data-view-target="worker" type="button"><span>⚖</span>التسجيل</button>
         <button data-view-target="dashboard" type="button"><span>▥</span>المؤشرات</button>
         <button data-view-target="simulator" type="button"><span>⌁</span>المحاكي</button>
+        <button data-view-target="reports" type="button"><span>▤</span>التقارير</button>
+        <button data-view-target="settings" type="button"><span>⚙</span>الإعدادات</button>
       </nav>
     </div>
 
@@ -390,6 +455,6 @@
       <div><strong id="toastTitle">تم التسجيل</strong><p id="toastText"></p></div>
     </div>
 
-    <script src="./app.js"></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
