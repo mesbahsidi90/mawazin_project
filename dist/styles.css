@@ -686,6 +686,64 @@ input:focus-visible {
   outline: 3px solid rgba(20, 184, 166, 0.22);
 }
 
+.food-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.food-option { position: relative; cursor: pointer; min-width: 0; }
+.food-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.food-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 2px solid var(--slate-200);
+  border-radius: 12px;
+  background: #fff;
+}
+.food-photo {
+  display: block;
+  aspect-ratio: 1;
+  background-size: 400% 200%;
+  background-repeat: no-repeat;
+  background-color: #f1f5f9;
+}
+.food-name {
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.5;
+}
+.food-check {
+  display: none;
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #0f766e;
+  color: #fff;
+  text-align: center;
+  font-weight: 800;
+  line-height: 24px;
+}
+.food-option:hover .food-card { border-color: #0f766e; }
+.food-option input:checked + .food-card { border-color: #0f766e; background: #e6f7f3; }
+.food-option input:checked + .food-card .food-check { display: block; }
+.food-option input:focus-visible + .food-card { outline: 3px solid #0f766e; outline-offset: 3px; }
+@media (max-width: 420px) {
+  .food-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

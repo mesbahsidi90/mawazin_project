@@ -201,7 +201,15 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   }
 
   function initializeForm() {
-    populateSelect($("#foodSelect"), FOODS);
+    $("#foodPicker").innerHTML = Object.entries(FOODS).map(([value, food], index) => `
+      <label class="food-option">
+        <input type="radio" name="food" value="${value}" required ${index === 0 ? 'checked' : ''} />
+        <span class="food-card">
+          <span class="food-photo" aria-hidden="true" style="background-position:${(index % 4) * 100 / 3}% ${Math.floor(index / 4) * 100}%"></span>
+          <span class="food-name">${food.label}</span>
+          <span class="food-check" aria-hidden="true">✓</span>
+        </span>
+      </label>`).join('');
     populateSelect($("#stageSelect"), STAGES);
     populateSelect($("#reasonSelect"), REASONS);
     $("#stageSelect").value = "buffet";
@@ -271,7 +279,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   }
 
   function updateCostPreview() {
-    const food = FOODS[$("#foodSelect").value] || FOODS.rice;
+    const food = FOODS[$("#foodPicker").querySelector('input:checked')?.value] || FOODS.rice;
     const weight = inputMode==='manual'?manualWeight:(scale.connected ? scale.weight : 0);
     $("#previewWeight").textContent = `${weight.toFixed(3)} كغ`;
     $("#previewCost").textContent = `${integerFormatter.format(Math.round(weight * food.unitCost))} دج`;
@@ -348,7 +356,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
       return;
     }
 
-    const food = $("#foodSelect").value;
+    const food = $("#foodPicker").querySelector('input:checked').value;
     const stage = $("#stageSelect").value;
     const reason = $("#reasonSelect").value;
     const meal = $('input[name="meal"]:checked').value;
@@ -647,7 +655,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
       button.addEventListener("click", () => switchView(button.dataset.viewTarget));
     });
 
-    $("#foodSelect").addEventListener("change", updateCostPreview);
+    $("#foodPicker").addEventListener("change", updateCostPreview);
     $("#wasteForm").addEventListener("submit", handleRecord);
     $("#tareButton").addEventListener("click", () => {
       setWeight(0);

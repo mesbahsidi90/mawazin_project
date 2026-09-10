@@ -1,6 +1,7 @@
 import {readFile,mkdir,writeFile,cp} from 'node:fs/promises';
 const files={'index.html':'text/html; charset=utf-8','styles.css':'text/css; charset=utf-8','app.js':'application/javascript; charset=utf-8','domain.js':'application/javascript; charset=utf-8','outbox.js':'application/javascript; charset=utf-8','sw.js':'application/javascript; charset=utf-8'};
 const assets={};
+files['food-images.css']='text/css; charset=utf-8';
 for(const [name,type] of Object.entries(files)) assets['/'+name]={type,body:await readFile('dist/'+name,'utf8')};
 const domain=(await readFile('dist/domain.js','utf8')).replaceAll('export ','');
 const worker=(await readFile('server/worker.js','utf8')).replace(/^import .*;\n/,'');

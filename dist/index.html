@@ -10,6 +10,7 @@
     />
     <title>موازين | تقليل هدر المطابخ</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./food-images.css" />
   </head>
   <body>
     <section id="loginPanel" class="login-page" aria-labelledby="loginTitle">
@@ -151,16 +152,15 @@
                   </div>
                 </fieldset>
 
-                <div class="form-row">
-                  <label class="input-label">
-                    <span>الصنف</span>
-                    <select id="foodSelect" required></select>
-                  </label>
+                <fieldset class="field-group food-fieldset">
+                  <legend>الصنف</legend>
+                  <div class="food-picker" id="foodPicker"></div>
+                </fieldset>
+
                   <label class="input-label">
                     <span>مرحلة الهدر</span>
                     <select id="stageSelect" required></select>
                   </label>
-                </div>
 
                 <label class="input-label">
                   <span>السبب المرجح</span>
