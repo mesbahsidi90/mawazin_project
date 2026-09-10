@@ -95,49 +95,11 @@
 
         <section class="view active" id="workerView" data-view="worker">
           <div class="worker-grid">
-            <article class="card scale-card">
-              <div class="card-head">
-                <div>
-                  <p class="eyebrow">مصدر الوزن</p>
-                  <h2>الميزان الذكي</h2>
-                </div>
-                <span class="status-pill online" id="workerConnection">
-                  <span class="pulse-dot" aria-hidden="true"></span>
-                  متصل
-                </span>
-              </div>
-
-              <label class="input-label"><span>طريقة الإدخال</span><select id="inputMode"><option value="manual">وزن يدوي من ميزان خارجي</option><option value="simulator">محاكي — بيانات اختبار</option></select></label>
-              <label class="input-label" id="manualField"><span>الوزن الصافي (كغ) بعد طرح الوعاء</span><input id="manualWeight" type="number" min="0.02" max="20" step="0.001" placeholder="0.000" /></label>
-              <div class="scale-visual" id="workerScaleVisual" hidden>
-                <div class="scale-platform" aria-hidden="true"></div>
-                <div class="scale-screen" aria-live="polite">
-                  <span class="scale-status" id="weightStatus">قراءة مستقرة</span>
-                  <div class="weight-reading">
-                    <strong id="liveWeight">2.480</strong>
-                    <span>كغ</span>
-                  </div>
-                  <div class="weight-meta">
-                    <span>قراءة محاكية وليست جهازًا حقيقيًا</span>
-                    <span id="lastSignal">الآن</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="scale-actions">
-                <button class="button ghost" id="tareButton" type="button">تصفير الميزان</button>
-                <button class="text-button" data-view-target="simulator" type="button">
-                  افتح المحاكي
-                  <span aria-hidden="true">←</span>
-                </button>
-              </div>
-            </article>
-
             <article class="card record-card">
               <div class="card-head compact">
                 <div>
-                  <p class="eyebrow">خطوة واحدة</p>
-                  <h2>ما الذي تم التخلص منه؟</h2>
+                  <p class="eyebrow">تسجيل الهدر</p>
+                  <h2>اختر الصنف</h2>
                 </div>
                 <span class="step-badge">01</span>
               </div>
@@ -157,6 +119,7 @@
                   <div class="food-picker" id="foodPicker"></div>
                 </fieldset>
 
+                <div class="waste-details">
                   <label class="input-label">
                     <span>مرحلة الهدر</span>
                     <select id="stageSelect" required></select>
@@ -167,7 +130,69 @@
                   <select id="reasonSelect" required></select>
                 </label>
 
-                <label class="input-label"><span>ملاحظة (اختياري)</span><input id="recordNote" maxlength="300" placeholder="مثل: فائض آخر دفعة من الغداء" /></label>
+                </div>
+                <details class="record-note"><summary>إضافة ملاحظة (اختياري)</summary>
+                <label class="input-label"><span>ملاحظة</span><input id="recordNote" maxlength="300" placeholder="مثل: فائض آخر دفعة من الغداء" /></label>
+                </details>
+
+              </form>
+            </article>
+
+            <article class="card scale-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">مصدر الوزن</p>
+                  <h2>الوزن والتسجيل</h2>
+                </div>
+                <span class="status-pill online" id="workerConnection">
+                  <span class="pulse-dot" aria-hidden="true"></span>
+                  متصل
+                </span>
+              </div>
+
+              <details class="weight-options"><summary>مصدر الوزن وخيارات الميزان</summary>
+              <label class="input-label"><span>طريقة الإدخال</span><select id="inputMode"><option value="manual">وزن يدوي من ميزان خارجي</option><option value="simulator">محاكي — بيانات اختبار</option></select></label>
+              <div class="scale-actions">
+                <button class="button ghost" id="tareButton" type="button">تصفير الميزان</button>
+                <button class="text-button" data-view-target="simulator" type="button">
+                  افتح المحاكي
+                  <span aria-hidden="true">←</span>
+                </button>
+              </div>
+              </details>
+              <label class="input-label" id="manualField"><span>الوزن الصافي (كغ) بعد طرح الوعاء</span><input id="manualWeight" inputmode="decimal" type="number" min="0.02" max="20" step="0.001" placeholder="0.000" /></label>
+              <div class="scale-visual" id="workerScaleVisual" hidden>
+                <div class="scale-platform" aria-hidden="true"></div>
+                <div class="scale-screen" aria-live="polite">
+                  <span class="scale-status" id="weightStatus">قراءة مستقرة</span>
+                  <div class="weight-reading">
+                    <strong id="liveWeight">2.480</strong>
+                    <span>كغ</span>
+                  </div>
+                  <div class="weight-meta">
+                    <span>قراءة محاكية وليست جهازًا حقيقيًا</span>
+                    <span id="lastSignal">الآن</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="weight-keypad" id="weightKeypad" aria-label="لوحة إدخال الوزن">
+                <button type="button" data-weight-key="1">1</button>
+                <button type="button" data-weight-key="2">2</button>
+                <button type="button" data-weight-key="3">3</button>
+                <button type="button" data-weight-key="4">4</button>
+                <button type="button" data-weight-key="5">5</button>
+                <button type="button" data-weight-key="6">6</button>
+                <button type="button" data-weight-key="7">7</button>
+                <button type="button" data-weight-key="8">8</button>
+                <button type="button" data-weight-key="9">9</button>
+                <button type="button" data-weight-key="." aria-label="الفاصل العشري">.</button>
+                <button type="button" data-weight-key="0">0</button>
+                <button type="button" data-weight-key="backspace" aria-label="حذف آخر رقم">⌫</button>
+              </div>
+
+              <div class="record-summary">
+                <p class="selected-food-label">الصنف المحدد <strong id="selectedFoodLabel">أرز</strong></p>
                 <div class="cost-preview" aria-live="polite">
                   <div>
                     <span>الوزن المسجل</span>
@@ -179,11 +204,11 @@
                   </div>
                 </div>
 
-                <button class="button primary record-button" id="recordButton" type="submit">
+                <button class="button primary record-button" id="recordButton" type="submit" form="wasteForm">
                   <span>سجّل الهدر</span>
                 </button>
                 <p class="form-hint" id="recordHint">اختر الصنف والسبب، ثم أكد القراءة المستقرة.</p>
-              </form>
+              </div>
             </article>
 
             <article class="card recent-card">

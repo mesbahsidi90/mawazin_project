@@ -280,6 +280,8 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
 
   function updateCostPreview() {
     const food = FOODS[$("#foodPicker").querySelector('input:checked')?.value] || FOODS.rice;
+    $('#selectedFoodLabel').textContent = food.label;
+    $('#weightKeypad').hidden = inputMode !== 'manual';
     const weight = inputMode==='manual'?manualWeight:(scale.connected ? scale.weight : 0);
     $("#previewWeight").textContent = `${weight.toFixed(3)} كغ`;
     $("#previewCost").textContent = `${integerFormatter.format(Math.round(weight * food.unitCost))} دج`;
@@ -386,7 +388,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
         pending=await queueList(account.id);
         mergeRecords(records,pending);
       }
-      setWeight(0);manualWeight=0;$('#manualWeight').value='';$('#recordNote').value='';
+      setWeight(0);manualWeight=0;$('#manualWeight').value='';delete $('#manualWeight').dataset.keypadDraft;$('#recordNote').value='';
       renderWorkerRecent();renderDashboard();renderNetwork();
       addEvent('حفظ التسجيل',`${FOODS[food].label} — ${weight.toFixed(3)} كغ`);
       showToast(demo?'حُفظ في التجربة':'حُفظ في قائمة الإرسال',demo?'هذه بيانات محلية تجريبية.':'ستظهر حالة التأكيد بعد المزامنة.');
@@ -651,6 +653,22 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   }
 
   function bindEvents() {
+    $('#weightKeypad').addEventListener('click', event => {
+      const button = event.target.closest('[data-weight-key]');
+      if (!button || inputMode !== 'manual') return;
+      const input = $('#manualWeight');
+      const key = button.dataset.weightKey;
+      // Preserve a trailing decimal until the next digit is entered: number inputs
+      // normalize '1.' to '1', so retain the keypad draft independently.
+      let value = input.dataset.keypadDraft ?? input.value;
+      if (key === 'backspace') value = value.slice(0, -1);
+      else if (key === '.') { if (!value.includes('.')) value = (value || '0') + '.'; }
+      else if (value.length < 7) value += key;
+      input.value = value.endsWith('.') ? value.slice(0, -1) : value;
+      input.dispatchEvent(new Event('input', {bubbles:true}));
+      input.dataset.keypadDraft = value;
+    });
+    $('#manualWeight').addEventListener('input', () => { delete $('#manualWeight').dataset.keypadDraft; });
     $$('[data-view-target]').forEach((button) => {
       button.addEventListener("click", () => switchView(button.dataset.viewTarget));
     });

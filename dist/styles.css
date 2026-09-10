@@ -1968,6 +1968,81 @@ td strong {
   .topbar-meta {max-width:48%;}
   .kpi-top {flex-wrap:wrap; gap:6px;}
 }
+/* Touch workstation: catalog and weighing controls share the same working surface. */
+.weight-keypad { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; direction:ltr; margin:16px 0; }
+.weight-keypad[hidden] { display:none; }
+.weight-keypad button { min-height:52px; border:1px solid #cbd5e1; border-radius:10px; background:#f8fafc; color:#123638; font-size:1.5rem; font-weight:700; touch-action:manipulation; }
+.weight-keypad button:active { background:#c9eee5; }
+.selected-food-label { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:1rem; color:#475569; }
+.selected-food-label strong { color:#0f766e; font-size:1.25rem; }
+.record-summary { border-top:1px solid #dce5e7; margin-top:16px; padding-top:14px; }
+.record-summary .cost-preview { margin:12px 0; }
+.record-summary .record-button { min-height:64px; font-size:1.25rem; }
+.record-note summary,.weight-options summary { cursor:pointer; min-height:48px; padding-block:12px; color:#0f766e; font-weight:700; }
+.weight-options { margin-bottom:12px; }
+.record-note .input-label { margin-block:8px 0; }
+.waste-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+#workerView select { min-height:56px; font-size:1rem; }
+#workerView .field-group legend,#workerView .input-label>span { font-size:1rem; }
+#workerView .segmented-control span { min-height:52px; font-size:1rem; }
+#manualWeight { min-height:82px; font-size:2.5rem; font-weight:700; direction:ltr; text-align:center; font-variant-numeric:tabular-nums; background:#f0faf7; border:2px solid #0f766e; }
+#workerView .scale-card .card-head { flex-wrap:wrap; gap:10px; }
+@media screen and (min-width:768px) {
+  .sidebar { position:relative; inset:auto; width:100%; padding:10px 24px; flex-direction:row; align-items:center; gap:24px; overflow:visible; }
+  .brand { flex-shrink:0; padding:0; border:0; }
+  .brand>span:last-child { display:block; }
+  .brand small { display:none; }
+  .desktop-nav { display:flex; flex:1; gap:6px; margin:0; padding:0; flex-wrap:wrap; }
+  .nav-item { width:auto; min-height:54px; padding:10px 14px; justify-content:center; gap:8px; font-size:1rem; }
+  .nav-item>span:last-child { display:inline; }
+  .nav-icon { display:none; }
+  .sidebar-note { display:none; }
+  .main-content { max-width:1920px; margin:0 auto; padding:0 24px 32px; }
+  #mobileLogout { display:inline-flex; }
+  .topbar { min-height:76px; }
+  .topbar h1 { font-size:1.6rem; }
+  .topbar .eyebrow { display:none; }
+  .connection-bar { margin-top:8px; }
+  .connection-bar button { min-height:44px; }
+  .notice { margin:8px 0; }
+  .view { padding-top:12px; }
+  .worker-grid { grid-template-columns:minmax(0,1.8fr) minmax(300px,1fr); gap:20px; align-items:start; }
+  #workerView .record-card { grid-column:1; grid-row:1; padding:22px; }
+  #workerView .scale-card { grid-column:2; grid-row:1; position:sticky; top:16px; padding:22px; }
+  #workerView .recent-card { grid-column:1/-1; }
+  #workerView .card-head h2 { font-size:1.4rem; }
+  #workerView .card-head .eyebrow,#workerView .step-badge { display:none; }
+  .record-card form { margin-top:16px; }
+  .food-picker { grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+  .food-card { border-radius:16px; border-width:3px; }
+  .food-photo { aspect-ratio:auto; height:clamp(100px,10vw,170px); }
+  .food-name { font-size:1.125rem; padding:10px 4px; }
+  .food-check { width:30px; height:30px; line-height:30px; }
+  .food-option input:checked+.food-card { box-shadow:0 0 0 2px #0f766e; }
+  .scale-actions { flex-wrap:wrap; }
+  .scale-actions button { min-height:48px; }
+  .scale-visual { margin-block:12px; }
+  .mobile-nav { display:none; }
+}
+@media screen and (min-width:768px) and (max-width:1100px) {
+  .sidebar { gap:12px; padding-inline:16px; }
+  .nav-item { font-size:.875rem; padding-inline:10px; }
+  .main-content { padding-inline:16px; }
+  .worker-grid { grid-template-columns:minmax(0,1.55fr) minmax(280px,1fr); gap:14px; }
+  #workerView .record-card,#workerView .scale-card { padding:16px; }
+  .food-picker { gap:8px; }
+  .food-name { font-size:1rem; }
+  .waste-details { grid-template-columns:1fr; gap:0; }
+}
+@media screen and (min-width:768px) and (max-width:899px) {
+  .food-picker { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .food-photo { height:120px; }
+  .brand-mark { display:none; }
+}
+@media screen and (max-width:767px) {
+  .worker-grid { grid-template-columns:minmax(0,1fr); }
+  .waste-details { grid-template-columns:1fr; gap:0; }
+}
 @media print {
   @page {size:A4 landscape; margin:12mm;}
   body {background:white; color:black;}
