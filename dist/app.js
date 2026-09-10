@@ -1,4 +1,4 @@
-import {defaultSettings,validateSettings,validateRecord,escapeHtml,dayKey,filterRecords,csvText} from './domain.js';
+import {defaultCatalog,validateService,serviceMetrics,defaultSettings,validateSettings,validateRecord,escapeHtml,dayKey,filterRecords,csvText} from './domain.js';
 import {queueList,queueWrite,queueRemove} from './outbox.js';
 (() => {
   "use strict";
@@ -171,7 +171,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   function loadRecords() {
     try {
     const stored = JSON.parse(localStorage.getItem('mawazin-demo-v2'));
-      if (Array.isArray(stored)) return stored.map(row=>validateRecord(row));
+      if (Array.isArray(stored)) return stored.map(row=>validateRecord(row,settings));
     } catch (error) {
       console.warn("تعذر تحميل البيانات المحلية", error);
     }
@@ -200,16 +200,138 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
       .join("");
   }
 
+  function foodImage(food) {
+    return food.photo ? `<img class="uploaded-food-photo" src="${escapeHtml(food.photo)}" alt="" />` : `<span class="food-photo" aria-hidden="true" style="background-position:${(food.image%4)*100/3}% ${Math.floor(food.image/4)*100}%"></span>`;
+  }
+  function renderFoodPicker() {
+    const selected=$("#foodPicker").querySelector("input:checked")?.value;
+    const meal=$('input[name="meal"]:checked').value;
+    const visible=Object.entries(FOODS).filter(([key,f])=>f.active!==false&&(showAllFoods||f.meals?.includes(meal)));
+    $("#foodPicker").innerHTML=visible.map(([value, food], index)=>`<label class="food-option"><input type="radio" name="food" value="${value}" required ${selected===value||(!visible.some(([k])=>k===selected)&&index===0)?'checked':''} /><span class="food-card">${foodImage(food)}<span class="food-name">${escapeHtml(food.label)}</span><span class="food-check" aria-hidden="true">✓</span></span></label>`).join("") || '<p>لا توجد أصناف لهذه الوجبة. اعرض كل الأصناف أو عدّل القائمة في الإعدادات.</p>';
+    updateCostPreview();
+  }
+
+  let workerStep=1, showAllFoods=false, catalogDraft={}, photoUploads=0, services=[], servicesReady=false;
+  function setWorkerStep(step) {
+    workerStep=step;
+    $('#workerView').dataset.step=String(step);
+    $('#flowTitle').textContent=['','١. اختر الصنف','٢. حدّد مصدر الهدر','٣. الوزن والتأكيد'][step];
+    $('#flowProgress').textContent=step+' / 3';
+    $('#stageChoices').innerHTML=Object.entries(STAGES).map(([key,stage])=>`<button type="button" class="button ghost" data-stage="${key}" aria-pressed="${$('#stageSelect').value===key}">${stage.label}</button>`).join('');
+    $('#selectedStageLabel').textContent=STAGES[$('#stageSelect').value]?.label??'';
+    $('#flowBack').hidden=step===1;$('#flowNext').hidden=step===3;
+    $('#flowNext').textContent=step===1?'التالي: مصدر الهدر':'التالي: الوزن والتأكيد';
+  }
+  function readCatalogEditor() {
+    for(const row of $('.catalog-row')) {
+      const item=catalogDraft[row.dataset.food];
+      item.label=row.querySelector('[data-label]').value;
+      item.image=Number(row.querySelector('[data-image]').value);
+      item.active=row.querySelector('[data-active]').checked;
+      item.meals=[...row.querySelectorAll('[data-meal]:checked')].map(el=>el.dataset.meal);
+    }
+    return catalogDraft;
+  }
+  function renderCatalogEditor() {
+    $('#priceInputs').innerHTML=Object.entries(catalogDraft).map(([key,item])=>`<div class="catalog-row" data-food="${key}">
+      <label class="input-label"><span>اسم الصنف</span><input data-label maxlength="60" required value="${escapeHtml(item.label)}" /></label>
+      <label class="input-label"><span>التكلفة دج/كغ</span><input data-price="${key}" type="number" min="0" max="1000000" step="1" required value="${settings.unitPrices[key]??0}" /></label>
+      <label class="input-label"><span>الصورة التمثيلية</span><select data-image>${Object.entries(defaultCatalog).map(([id,f])=>`<option value="${f.image}" ${f.image===item.image?'selected':''}>${f.label}</option>`).join('')}</select></label>
+      <span class="food-photo catalog-photo" aria-hidden="true" style="background-position:${item.image%4*100/3}% ${Math.floor(item.image/4)*100}%"></span>
+      <label class="input-label"><span>رفع صورة الصنف</span><input type="file" data-photo accept="image/jpeg,image/png,image/webp" /><small data-photo-status>${item.photo?'صورة خاصة محفوظة':'صورة تمثيلية'}</small></label>\n      <label><input type="checkbox" data-active ${item.active?'checked':''} /> يظهر للعامل</label>
+      <fieldset><legend>قائمة الوجبة</legend>${Object.entries(MEALS).map(([meal,label])=>`<label><input type="checkbox" data-meal="${meal}" ${item.meals.includes(meal)?'checked':''} /> ${label}</label>`).join('')}</fieldset>
+    </div>`).join('');
+  }
+  async function loadServices() {
+    servicesReady=false;$('#serviceSave').disabled=true;
+    const owner=account?.id,isDemo=demo;
+    try {
+      const rows=isDemo?JSON.parse(localStorage.getItem('mawazin-demo-services-v1')||'[]'):(await api('/api/services')).services;
+      if(owner!==account?.id||isDemo!==demo)return;
+      services=rows;servicesReady=true;fillService();
+      $('#serviceStatus').textContent=isDemo?'إجماليات التجربة محلية.':'تم تحميل إجماليات الوجبات.';
+      renderServiceList();
+    }catch(error){$('#serviceStatus').textContent='تعذر تحميل الوجبات: '+error.message;}
+    finally{$('#serviceSave').disabled=!servicesReady;}
+  }
+  function fillService() {
+    const r=services.find(x=>x.date===$('#serviceDate').value&&x.meal===$('#serviceMeal').value);
+    $('#serviceCount').value=r?.meals??'';$('#serviceProduction').value=r?.productionKg??'';
+  }
+  function renderServiceList() {
+    $('#serviceList').innerHTML=services.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12).map(r=>`<p>${escapeHtml(r.date)} · ${MEALS[r.meal]}: ${r.meals} وجبة / ${r.productionKg} كغ</p>`).join('');
+  }
+  function renderServiceMetrics(filters) {
+    if(!servicesReady){$('#serviceMetrics').textContent='مؤشرات الوجبات غير متاحة حتى تحميل إجماليات الوجبات من الإعدادات.';return;}
+    const totals=services.filter(x=>x.date>=filters.start&&x.date<=filters.end);
+    const pendingIds=new Set(pending.map(r=>r.id));
+    const rows=filterRecords(records,{start:filters.start,end:filters.end,source:'manual'}).filter(r=>!pendingIds.has(r.id));
+    const m=serviceMetrics(rows,totals);
+    $('#serviceMetrics').textContent=!totals.length?'لا توجد إجماليات وجبات لهذه الفترة. أضفها من الإعدادات.':
+      `مؤشرات المطبخ للفترة كاملة، لجميع الأصناف والمراحل، من القياسات اليدوية المؤكدة فقط: ${totals.length} خدمة مسجلة، ${m.meals} وجبة، ${m.production.toFixed(1)} كغ إنتاج. الهدر: ${m.gramsPerMeal===null?'غير محسوب (عدد الوجبات صفر)':m.gramsPerMeal.toFixed(1)+' غ/وجبة'}، ${m.wastePercent===null?'نسبة الإنتاج غير محسوبة (الإنتاج صفر)':m.wastePercent.toFixed(1)+'% من الإنتاج'}. ${m.excluded} سجل خارج الخدمات المسجلة؛ ${pending.filter(r=>dayKey(r.timestamp)>=filters.start&&dayKey(r.timestamp)<=filters.end).length} معلّق مستبعد. أدخل كل الخدمات وسجّل الهدر كاملًا لتكون المقارنة ممثلة.`;
+  }
+  function initializeWorkstation() {
+    setWorkerStep(1);
+    $('#flowBack').addEventListener('click',()=>setWorkerStep(workerStep-1));
+    $('#flowNext').addEventListener('click',()=>{
+      if(!$('#foodPicker').querySelector('input:checked')){showToast('اختر صنفًا','أضف صنفًا نشطًا لقائمة الوجبة أو اعرض كل الأصناف.',true);return;}
+      setWorkerStep(workerStep+1);
+    });
+    $('#stageChoices').addEventListener('click',event=>{const button=event.target.closest('[data-stage]');if(!button)return;$('#stageSelect').value=button.dataset.stage;setWorkerStep(workerStep);});
+    $('#allFoods').addEventListener('click',()=>{showAllFoods=!showAllFoods;$('#allFoods').textContent=showAllFoods?'أصناف الوجبة فقط':'عرض كل الأصناف';renderFoodPicker();});
+    $('#mealControl').addEventListener('change',renderFoodPicker);
+    $('#priceInputs').addEventListener('change',async event=>{
+      if(event.target.matches('[data-photo]')){
+        const row=event.target.closest('.catalog-row'),file=event.target.files[0],status=row.querySelector('[data-photo-status]');
+        if(!file)return;
+        if(demo){status.textContent='رفع الصور الخاصة متاح في وضع الحساب. يمكنك اختيار صورة تمثيلية في التجربة.';return;}
+        if(file.size>10000000){status.textContent='اختر صورة أصغر من 10 ميغابايت.';return;}
+        photoUploads++;$('#settingsSave').disabled=true;event.target.disabled=true;
+        status.textContent='جارٍ رفع الصورة…';
+        try{
+          const bitmap=await createImageBitmap(file),canvas=document.createElement('canvas');
+          const ratio=Math.min(1,640/Math.max(bitmap.width,bitmap.height));
+          canvas.width=Math.max(1,Math.round(bitmap.width*ratio));canvas.height=Math.max(1,Math.round(bitmap.height*ratio));
+          canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+          const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',0.8));
+          if(!blob||blob.type!=='image/webp')throw Error('تعذر تجهيز الصورة في هذا المتصفح.');
+          const result=await api('/api/food-images',{method:'POST',headers:{'Content-Type':'image/webp'},body:blob});
+          catalogDraft[row.dataset.food].photo=result.photo;
+          status.textContent='رُفعت الصورة؛ احفظ الإعدادات لتطبيقها.';
+        }catch(error){status.textContent=error.message;}
+        finally{photoUploads--;$('#settingsSave').disabled=photoUploads>0;event.target.disabled=false;}
+      }
+      if(event.target.matches('[data-image]')){
+        delete catalogDraft[event.target.closest('.catalog-row').dataset.food].photo;
+        const i=Number(event.target.value);event.target.closest('.catalog-row').querySelector('.catalog-photo').style.backgroundPosition=(i%4*100/3)+'% '+Math.floor(i/4)*100+'%';
+      }
+    });
+    $('#addFood').addEventListener('click',()=>{
+      readCatalogEditor();
+      const drafts=Object.fromEntries($('[data-price]').map(el=>[el.dataset.price,el.value]));
+      if(Object.keys(catalogDraft).length>=100){showToast('الحد الأقصى','يمكن إضافة 100 صنف.',true);return;}
+      catalogDraft['food-'+makeId()]={label:'صنف جديد',image:0,active:true,meals:['lunch']};
+      renderCatalogEditor();
+      for(const el of $('[data-price]'))if(el.dataset.price in drafts)el.value=drafts[el.dataset.price];
+    });
+    $('#serviceDate').value=dayKey(new Date());$('#serviceDate').max=dayKey(new Date());$('#serviceMeal').value='lunch';
+    $('#serviceDate').addEventListener('change',fillService);$('#serviceMeal').addEventListener('change',fillService);
+    $('#serviceReload').addEventListener('click',loadServices);
+    $('#serviceForm').addEventListener('submit',async event=>{
+      event.preventDefault();if(!servicesReady)return;
+      const old=services.find(x=>x.date===$('#serviceDate').value&&x.meal===$('#serviceMeal').value);
+      $('#serviceSave').disabled=true;
+      try {
+        const input=validateService({date:$('#serviceDate').value,meal:$('#serviceMeal').value,meals:Number($('#serviceCount').value),productionKg:Number($('#serviceProduction').value),revision:old?.revision??0});
+        const saved=demo?{...input,revision:input.revision+1}:(await api('/api/services',{method:'PUT',body:JSON.stringify(input)})).service;
+        const next=[...services.filter(x=>x.date!==saved.date||x.meal!==saved.meal),saved];
+        if(demo)localStorage.setItem('mawazin-demo-services-v1',JSON.stringify(next));
+        services=next;renderServiceList();$('#serviceStatus').textContent='تم حفظ الإجمالي. يمكنك مراجعته في التقارير.';
+      }catch(error){$('#serviceStatus').textContent=error.message+' لم تُمسح مدخلاتك.';}
+      finally{$('#serviceSave').disabled=false;}
+    });
+  }
   function initializeForm() {
-    $("#foodPicker").innerHTML = Object.entries(FOODS).map(([value, food], index) => `
-      <label class="food-option">
-        <input type="radio" name="food" value="${value}" required ${index === 0 ? 'checked' : ''} />
-        <span class="food-card">
-          <span class="food-photo" aria-hidden="true" style="background-position:${(index % 4) * 100 / 3}% ${Math.floor(index / 4) * 100}%"></span>
-          <span class="food-name">${food.label}</span>
-          <span class="food-check" aria-hidden="true">✓</span>
-        </span>
-      </label>`).join('');
     populateSelect($("#stageSelect"), STAGES);
     populateSelect($("#reasonSelect"), REASONS);
     $("#stageSelect").value = "buffet";
@@ -217,6 +339,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   }
 
   function switchView(name) {
+    document.body.classList.toggle("worker-mode",name==="worker");
     if (!VIEW_META[name] || (!account && !demo)) return;
 
     $$(".view").forEach((view) => {
@@ -281,12 +404,13 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   function updateCostPreview() {
     const food = FOODS[$("#foodPicker").querySelector('input:checked')?.value] || FOODS.rice;
     $('#selectedFoodLabel').textContent = food.label;
+    $('#flowWeight').textContent = (inputMode==='manual'?manualWeight:scale.weight).toFixed(3)+' كغ';
     $('#weightKeypad').hidden = inputMode !== 'manual';
     const weight = inputMode==='manual'?manualWeight:(scale.connected ? scale.weight : 0);
     $("#previewWeight").textContent = `${weight.toFixed(3)} كغ`;
     $("#previewCost").textContent = `${integerFormatter.format(Math.round(weight * food.unitCost))} دج`;
 
-    const canRecord = !submitting && (account || demo) && weight>=0.02 && weight<=20 && (inputMode==='manual'||(scale.connected && scale.stable));
+    const canRecord = !!$('#foodPicker').querySelector('input:checked') && !submitting && (account || demo) && weight>=0.02 && weight<=20 && (inputMode==='manual'||(scale.connected && scale.stable));
     $("#recordButton").disabled = !canRecord;
     $("#recordHint").textContent = inputMode==='manual' ? 'أدخل الوزن الصافي من ميزانك. لن يُرسل السجل دون تأكيدك.' : !scale.connected
       ? "أعد اتصال الميزان من شاشة المحاكي قبل التسجيل."
@@ -390,6 +514,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
       }
       setWeight(0);manualWeight=0;$('#manualWeight').value='';delete $('#manualWeight').dataset.keypadDraft;$('#recordNote').value='';
       renderWorkerRecent();renderDashboard();renderNetwork();
+      setWorkerStep(1);
       addEvent('حفظ التسجيل',`${FOODS[food].label} — ${weight.toFixed(3)} كغ`);
       showToast(demo?'حُفظ في التجربة':'حُفظ في قائمة الإرسال',demo?'هذه بيانات محلية تجريبية.':'ستظهر حالة التأكيد بعد المزامنة.');
       if(!demo) void synchronize();
@@ -415,7 +540,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
       <div class="recent-item">
         <span class="food-icon">${FOODS[record.food]?.mark || "--"}</span>
         <div class="recent-item-info">
-          <strong>${FOODS[record.food]?.label || record.food}</strong>
+          <strong>${escapeHtml(FOODS[record.food]?.label || record.food)}</strong>
           <small>${formatRecordTime(record.timestamp)} · ${MEALS[record.meal] || record.meal}</small>
         </div>
         <span class="recent-weight">${Number(record.weight).toFixed(2)} كغ</span>
@@ -524,7 +649,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     const maximum = ranked[0]?.[1] || 1;
     $("#paretoList").innerHTML = ranked.map(([key, weight]) => `
       <div class="pareto-item">
-        <span class="pareto-label">${FOODS[key]?.label || key}</span>
+        <span class="pareto-label">${escapeHtml(FOODS[key]?.label || key)}</span>
         <div class="pareto-track"><div class="pareto-fill" style="width:${(weight / maximum) * 100}%"></div></div>
         <span class="pareto-value">${numberFormatter.format(weight)} كغ</span>
       </div>
@@ -585,7 +710,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     $("#recordsTable").innerHTML = latest.map((record) => `
       <tr>
         <td>${formatRecordTime(record.timestamp)}</td>
-        <td><strong>${FOODS[record.food]?.label || record.food}</strong></td>
+        <td><strong>${escapeHtml(FOODS[record.food]?.label || record.food)}</strong></td>
         <td>${STAGES[record.stage]?.label || record.stage}</td>
         <td><span class="avoidability-dot" style="background:${REASONS[record.reason]?.avoidable ? "#d97706" : "#94a3b8"}"></span>${REASONS[record.reason]?.label || record.reason}</td>
         <td class="weight-cell">${Number(record.weight).toFixed(2)} كغ</td>
@@ -827,10 +952,10 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     $('#resetDemoButton').hidden=!demo;
     $('#reportSource').value=demo?'':'manual';
     applySettings();setInputMode();renderWorkerRecent();renderDashboard();renderNetwork();
-    switchView('worker');
+    services=[];loadServices();setWorkerStep(1);switchView('worker');
   }
   function logout() {
-    if(syncing||submitting) {showToast('انتظر إتمام العملية','يمكنك تسجيل الخروج بعد انتهاء محاولة الحفظ.',true);return;}
+    if(syncing||submitting||photoUploads||$('#settingsSave').disabled||$('#serviceSave').disabled&&servicesReady) {showToast('انتظر إتمام العملية','يمكنك تسجيل الخروج بعد انتهاء محاولة الحفظ.',true);return;}
     if(pending.length&&!window.confirm(`يوجد ${pending.length} سجلًا معلقًا سيبقى على هذا الجهاز للحساب نفسه. تسجيل الخروج؟`)) return;
     const wasDemo=demo;
     authAttempt++;
@@ -848,19 +973,25 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     updateCostPreview();
   }
   function applySettings() {
-    for(const [key,value] of Object.entries(settings.unitPrices)) FOODS[key].unitCost=value;
+    for(const key of Object.keys(FOODS)) delete FOODS[key];
+    for(const [key,item] of Object.entries(settings.catalog??defaultCatalog)) FOODS[key]={...item,unitCost:settings.unitPrices[key],mark:item.label.slice(0,2)};
+    renderFoodPicker();
+    const reportFood=$('#reportFood').value;
+    $('#reportFood').innerHTML='<option value="">كل الأصناف</option>'+Object.entries(FOODS).map(([key,v])=>`<option value="${key}">${escapeHtml(v.label)}</option>`).join('');
+    $('#reportFood').value=reportFood;
+
     $('#siteNameLabel').textContent=settings.siteName;
     updateCostPreview();
   }
   function renderSettings() {
     $('#settingName').value=settings.siteName;$('#settingTarget').value=settings.dailyTarget;
-    $('#priceInputs').innerHTML=Object.keys(FOODS).map(key=>`<label class="input-label"><span>${FOODS[key].label}</span><input data-price="${key}" aria-label="سعر ${FOODS[key].label}" type="number" min="0" max="1000000" step="1" required value="${settings.unitPrices[key]}" /></label>`).join('');
+    catalogDraft=structuredClone(settings.catalog??defaultCatalog);renderCatalogEditor();
     renderNetwork();
   }
   async function saveSettings(event) {
     event.preventDefault();$('#settingsSave').disabled=true;
     try {
-      const next=validateSettings({siteName:$('#settingName').value,dailyTarget:Number($('#settingTarget').value),unitPrices:Object.fromEntries($$('[data-price]').map(el=>[el.dataset.price,Number(el.value)]))});
+      const next=validateSettings({siteName:$('#settingName').value,dailyTarget:Number($('#settingTarget').value),catalog:readCatalogEditor(),unitPrices:Object.fromEntries($('[data-price]').map(el=>[el.dataset.price,Number(el.value)]))});
       if(demo) {localStorage.setItem('mawazin-demo-settings-v2',JSON.stringify(next));settings=next;}
       else {
         const result=await api('/api/settings',{method:'PUT',body:JSON.stringify({settings:next,revision:settingsRevision})});
@@ -877,7 +1008,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   }
   function renderReport() {
     try {
-      const filters=reportFilters();$('#reportError').textContent='';
+      const filters=reportFilters();$('#reportError').textContent='';renderServiceMetrics(filters);
       reportFiltered=filterRecords(records,filters).sort((a,b)=>b.timestamp.localeCompare(a.timestamp));
       const total=reportFiltered.reduce((s,r)=>({weight:s.weight+r.weight,cost:s.cost+r.cost}),{weight:0,cost:0});
       $('#reportSummary').textContent=`${settings.siteName} | ${filters.start} — ${filters.end} | ${reportFiltered.length} سجل | ${numberFormatter.format(total.weight)} كغ | ${integerFormatter.format(total.cost)} دج`;
@@ -892,7 +1023,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   function rowsHtml(rows) {
     if(!rows.length) return '<tr><td colspan="8" class="empty-state">لا توجد سجلات مطابقة. غيّر الفترة أو المصدر أو أضف تسجيلًا.</td></tr>';
     const pendingIds=new Set(pending.map(r=>r.id));
-    return rows.map(r=>`<tr><td>${escapeHtml(dateFormatter.format(new Date(r.timestamp)))}</td><td>${FOODS[r.food].label}</td><td>${STAGES[r.stage].label}</td><td>${REASONS[r.reason].label}</td><td>${r.weight.toFixed(3)}</td><td>${r.cost}</td><td>${r.source==='manual'?'يدوي':'محاكي'} / ${demo?'تجريبي':pendingIds.has(r.id)?'معلق':'مؤكد'}</td><td class="note-cell">${escapeHtml(r.note)}</td></tr>`).join('');
+    return rows.map(r=>`<tr><td>${escapeHtml(dateFormatter.format(new Date(r.timestamp)))}</td><td>${escapeHtml((FOODS[r.food]?.label??r.food))}</td><td>${STAGES[r.stage].label}</td><td>${REASONS[r.reason].label}</td><td>${r.weight.toFixed(3)}</td><td>${r.cost}</td><td>${r.source==='manual'?'يدوي':'محاكي'} / ${demo?'تجريبي':pendingIds.has(r.id)?'معلق':'مؤكد'}</td><td class="note-cell">${escapeHtml(r.note)}</td></tr>`).join('');
   }
   function download(name,content,type) {
     const url=URL.createObjectURL(new Blob([content],{type}));
@@ -904,15 +1035,16 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     const pendingIds=new Set(pending.map(r=>r.id));
     download('mawazin-report-'+dayKey(new Date())+'.csv',csvText([
       ['التاريخ بتوقيت الجزائر','الصنف','المرحلة','السبب','الوزن كغ','السعر دج/كغ','التكلفة دج','المصدر','الحفظ','ملاحظة'],
-      ...reportFiltered.map(r=>[dateFormatter.format(new Date(r.timestamp)),FOODS[r.food].label,STAGES[r.stage].label,REASONS[r.reason].label,r.weight,r.unitCost,r.cost,r.source,demo?'demo':pendingIds.has(r.id)?'pending':'confirmed',r.note])
+      ...reportFiltered.map(r=>[dateFormatter.format(new Date(r.timestamp)),(FOODS[r.food]?.label??r.food),STAGES[r.stage].label,REASONS[r.reason].label,r.weight,r.unitCost,r.cost,r.source,demo?'demo':pendingIds.has(r.id)?'pending':'confirmed',r.note])
     ]),'text/csv;charset=utf-8');
   }
   function initializeEnhancements() {
+    initializeWorkstation();
     $('#demoLogin').addEventListener('click',()=>{
       authAttempt++;
-      demo=true;account=null;pending=[];records=loadRecords();settings=structuredClone(defaultSettings);
+      demo=true;account=null;pending=[];settings=structuredClone(defaultSettings);
       try {const saved=localStorage.getItem('mawazin-demo-settings-v2');if(saved)settings=validateSettings(JSON.parse(saved));} catch { /* Keep usable defaults. */ }
-      $('#inputMode').value='simulator';enterApplication();
+      applySettings();records=loadRecords();$('#inputMode').value='simulator';enterApplication();
     });
     $('#resumeSession').addEventListener('click',startAccount);
     $('#logoutButton').addEventListener('click',logout);$('#mobileLogout').addEventListener('click',logout);
@@ -924,7 +1056,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
       if(demo){showToast('وضع التجربة','هذا الوضع لا يتصل بقاعدة بيانات.');return;}
       try{await api('/api/health');showToast('الخادم يستجيب','تم تأكيد اتصال الخادم بقاعدة البيانات.');}catch(error){showToast('فشل فحص الاتصال',error.message,true);}
     });
-    $('#backupButton').addEventListener('click',()=>download('mawazin-backup.json',JSON.stringify({version:2,exportedAt:new Date().toISOString(),demo,settings,records,pending},null,2),'application/json'));
+    $('#backupButton').addEventListener('click',()=>download('mawazin-backup.json',JSON.stringify({services,version:3,exportedAt:new Date().toISOString(),demo,settings,records,pending},null,2),'application/json'));
     $('#legacyBackup').addEventListener('click',()=>{
       try {const legacy=localStorage.getItem(STORAGE_KEY);if(!legacy){showToast('لا توجد بيانات قديمة','لم نعثر على سجلات النسخة الأولى في هذا المتصفح.');return;}download('mawazin-legacy.json',legacy,'application/json');}
       catch {showToast('تعذر القراءة','التخزين المحلي غير متاح.',true);}

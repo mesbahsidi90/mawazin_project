@@ -20,3 +20,9 @@ export const settings = sqliteTable('user_settings', {
   payload: text('payload').notNull(),
   revision: integer('revision').notNull().default(1),
 });
+
+export const services = sqliteTable('meal_services', {
+  owner:text('owner').notNull(), date:text('date').notNull(), meal:text('meal').notNull(),
+  meals:integer('meals').notNull(), productionGrams:integer('production_grams').notNull(),
+  revision:integer('revision').notNull().default(1),
+}, table=>[primaryKey({columns:[table.owner,table.date,table.meal]})]);

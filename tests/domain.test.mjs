@@ -22,3 +22,13 @@ test('CSV formula protection, escaping and UTF-8 BOM',()=>{
   assert.ok(value.startsWith('\ufeff'));assert.ok(value.includes("'=SUM(A1)"));assert.ok(value.includes('a""b'));assert.ok(value.includes("'@evil"));
   assert.equal(escapeHtml('<script>'),'&lt;script&gt;');
 });
+
+test('service metrics use matching meals and exclude simulator and uncovered waste',async()=>{
+ const {serviceMetrics,validateService}=await import('../dist/domain.js');
+ const totals=[{date:'2026-01-04',meal:'lunch',meals:100,productionKg:50}];
+ const r={...record,meal:'lunch',weight:5,source:'manual'};
+ const m=serviceMetrics([r,{...r,source:'simulator',weight:99},{...r,meal:'dinner',weight:99}],totals);
+ assert.equal(m.gramsPerMeal,50);assert.equal(m.wastePercent,10);assert.equal(m.excluded,1);
+ assert.equal(serviceMetrics([r],[{...totals[0],meals:0,productionKg:0}]).gramsPerMeal,null);
+ assert.throws(()=>validateService({...totals[0],date:'2026-02-30',revision:0}));
+});

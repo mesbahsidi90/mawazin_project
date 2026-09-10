@@ -94,6 +94,8 @@
         <p class="notice" id="dataScope">سجلات هذا الحساب فقط؛ مشاركة الفريق ليست مفعلة.</p>
 
         <section class="view active" id="workerView" data-view="worker">
+          <div class="flow-bar"><strong id="flowTitle">١. اختر الصنف</strong><span id="flowWeight">0.000 كغ</span><button type="button" class="button ghost" data-view-target="dashboard">الإدارة والتقارير</button></div>
+          <div class="flow-navigation"><button type="button" class="button ghost" id="flowBack">السابق</button><span id="flowProgress" role="status"></span><button type="button" class="button primary" id="flowNext">التالي</button></div>
           <div class="worker-grid">
             <article class="card record-card">
               <div class="card-head compact">
@@ -116,13 +118,13 @@
 
                 <fieldset class="field-group food-fieldset">
                   <legend>الصنف</legend>
-                  <div class="food-picker" id="foodPicker"></div>
+                  <button type="button" class="text-button" id="allFoods">عرض كل الأصناف</button><div class="food-picker" id="foodPicker"></div>
                 </fieldset>
 
-                <div class="waste-details">
+                <div class="waste-details" id="wasteDetails">
                   <label class="input-label">
                     <span>مرحلة الهدر</span>
-                    <select id="stageSelect" required></select>
+                    <select id="stageSelect" required aria-label="مرحلة الهدر"></select><div id="stageChoices" class="stage-choices" role="group" aria-label="مصدر الهدر"></div>
                   </label>
 
                 <label class="input-label">
@@ -192,7 +194,7 @@
               </div>
 
               <div class="record-summary">
-                <p class="selected-food-label">الصنف المحدد <strong id="selectedFoodLabel">أرز</strong></p>
+                <p class="selected-food-label">الصنف المحدد <strong id="selectedFoodLabel">أرز</strong></p><p id="selectedStageLabel"></p>
                 <div class="cost-preview" aria-live="polite">
                   <div>
                     <span>الوزن المسجل</span>
@@ -439,7 +441,7 @@
             </form>
             <p id="reportError" class="error-text" role="alert"></p>
             <p id="reportSummary" class="report-summary"></p>
-            <p id="reportCaption" class="form-hint">الفترة حسب توقيت الجزائر. السجلات المعلقة غير مؤكدة مركزيًا، والتكاليف تقديرية.</p>
+            <p id="serviceMetrics" class="notice" role="status"></p><p id="reportCaption" class="form-hint">الفترة حسب توقيت الجزائر. السجلات المعلقة غير مؤكدة مركزيًا، والتكاليف تقديرية.</p>
             <div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الصنف</th><th>المرحلة</th><th>السبب</th><th>كغ</th><th>دج</th><th>المصدر / الحفظ</th><th>ملاحظة</th></tr></thead><tbody id="reportRows"></tbody></table></div>
             <div class="pagination"><button id="reportPrev" type="button" class="button ghost">السابق</button><span id="reportPage"></span><button id="reportNext" type="button" class="button ghost">التالي</button></div>
           </article>
@@ -453,12 +455,16 @@
                 <label class="input-label"><span>حد التنبيه اليومي للهدر (كغ)</span><input id="settingTarget" type="number" min="0" max="10000" step="0.1" required /></label>
                 <p class="form-hint">العملة: الدينار الجزائري · التقارير: توقيت الجزائر</p>
                 <h3>تكلفة الكيلوغرام بالدينار</h3><p class="form-hint">أسعار افتراضية للتجربة؛ أدخل تكلفة مطبخك. لا نعيد تسعير السجلات المؤكدة السابقة. المعلّق يُسعّر عند المزامنة.</p>
-                <div id="priceInputs" class="price-grid"></div>
+                <p>اختر لكل صنف صورة تمثيلية والوجبات التي يظهر فيها. إيقاف الصنف يخفيه من التسجيل ويحفظ تاريخه.</p><div id="priceInputs" class="catalog-editor"></div><button id="addFood" class="button ghost" type="button">إضافة صنف</button>
                 <button id="settingsSave" class="button primary wide" type="submit">حفظ الإعدادات</button>
                 <p id="settingsStatus" role="status"></p>
               </form>
             </article>
             <div class="settings-side">
+              <article class="card settings-card"><h2>الوجبات والإنتاج</h2><p>أدخل الإجمالي الفعلي بعد الخدمة. حفظ التاريخ والوجبة نفسيهما يعدّل الإجمالي ولا يضيفه مرة أخرى.</p>
+              <form id="serviceForm"><label class="input-label"><span>التاريخ</span><input id="serviceDate" type="date" required /></label><label class="input-label"><span>الوجبة</span><select id="serviceMeal"><option value="breakfast">فطور</option><option value="lunch">غداء</option><option value="dinner">عشاء</option></select></label>
+              <label class="input-label"><span>عدد الوجبات المقدمة</span><input id="serviceCount" type="number" min="0" max="100000" step="1" required /></label><label class="input-label"><span>إجمالي الطعام المنتج (كغ)</span><input id="serviceProduction" type="number" min="0" max="100000" step="0.001" required /></label>
+              <button id="serviceSave" class="button primary" type="submit">حفظ إجمالي الوجبة</button><button id="serviceReload" class="button ghost" type="button">تحميل الوجبات</button><p id="serviceStatus" role="status"></p><div id="serviceList"></div></form></article>
               <article class="card settings-card"><p class="eyebrow">الاتصال والبيانات</p><h2>حالة النظام</h2><dl class="system-list"><dt>مصدر الميزان</dt><dd>إدخال يدوي أو محاكي؛ لم يربط جهاز حقيقي بعد</dd><dt>التخزين</dt><dd id="systemStorage"></dd><dt>آخر مزامنة ناجحة</dt><dd id="lastSync">لم تتم بعد</dd><dt>العمل دون إنترنت</dt><dd id="offlineReadiness">يمكن تسجيل بيانات معلقة خلال الجلسة الحالية؛ الدخول يحتاج الإنترنت.</dd></dl><button id="checkConnection" class="button ghost wide" type="button">فحص الاتصال بالخادم</button></article>
               <article class="card settings-card"><p class="eyebrow">قابلية النقل</p><h2>نسخة من بياناتك</h2><p>تنزيل جميع السجلات الحالية والإعدادات وعمليات الإرسال المعلقة. لا تتضمن النسخة أسرار الدخول.</p><button id="backupButton" class="button ghost wide" type="button">تنزيل نسخة JSON</button><p class="form-hint">السجلات القديمة من النسخة الأولى لم تُحذف من متصفحك.</p><button id="legacyBackup" class="text-button" type="button">تنزيل بيانات النسخة الأولى</button></article>
             </div>

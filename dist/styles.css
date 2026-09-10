@@ -2055,3 +2055,39 @@ td strong {
   tr {break-inside:avoid;}
   thead {display:table-header-group;}
 }
+
+/* Guided station: one decision at a time; management stays outside the worker flow. */
+.flow-bar,.flow-navigation {display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
+.flow-bar strong {font-size:1.5rem;}
+#flowWeight {font-size:1.8rem;font-variant-numeric:tabular-nums;color:#0f766e;}
+.flow-navigation .button {min-height:60px;font-size:1.125rem;}
+.worker-mode .sidebar,.worker-mode .mobile-nav {display:none;}
+.worker-mode .main-content {margin:0 auto;}
+.worker-mode .topbar {min-height:64px;}
+.worker-mode #workerView .recent-card {display:none;}
+#workerView .worker-grid {grid-template-columns:minmax(0,1fr);}
+#workerView .record-card,#workerView .scale-card {grid-column:1;grid-row:auto;position:static;max-width:1200px;width:100%;margin-inline:auto;}
+#workerView[data-step="1"] .scale-card,#workerView[data-step="1"] .waste-details,#workerView[data-step="1"] .record-note,
+#workerView[data-step="2"] .scale-card,#workerView[data-step="2"] .meal-fieldset,#workerView[data-step="2"] .food-fieldset,
+#workerView[data-step="3"] .record-card {display:none;}
+#workerView[data-step="2"] .record-card .card-head {display:none;}
+#workerView[data-step="3"] .scale-card {max-width:700px;}
+#workerView[data-step="1"] .food-photo {height:clamp(120px,15vw,210px);}
+#workerView select {min-height:64px;}
+.catalog-row {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin-bottom:16px;}
+.catalog-row input[type=checkbox] {width:22px;height:22px;vertical-align:middle;}
+.catalog-row fieldset {grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;border:0;}
+.catalog-photo {height:96px;width:96px;aspect-ratio:1;border-radius:12px;}
+#addFood {margin-bottom:16px;}
+#serviceList {max-height:260px;overflow:auto;}
+@media(max-width:640px){.catalog-row {grid-template-columns:minmax(0,1fr);}.worker-mode .main-content{padding-bottom:24px;}}
+@media print {.flow-bar,.flow-navigation {display:none!important;}}
+
+.uploaded-food-photo {display:block;width:100%;height:clamp(120px,15vw,210px);object-fit:cover;background:#eef2f4;}
+.catalog-row small {display:block;margin-top:8px;overflow-wrap:anywhere;}
+
+#stageSelect {display:none;}
+.stage-choices {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.stage-choices button {min-height:80px;font-size:1.125rem;white-space:normal;}
+.stage-choices [aria-pressed=true] {background:#d3f3e8;border:3px solid #0f766e;}
+#workerView[data-step="2"] .waste-details {grid-template-columns:minmax(0,1fr);}

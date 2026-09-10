@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import {createWorker} from '../server/worker.js';
 import {defaultSettings} from '../dist/domain.js';
 
 function fixture() {
   const sqlite=new DatabaseSync(':memory:');
-  sqlite.exec(readFileSync(new URL('../drizzle/0000_big_molecule_man.sql',import.meta.url),'utf8'));
+  for(const file of readdirSync(new URL('../drizzle/',import.meta.url)).filter(x=>x.endsWith('.sql')).sort()) sqlite.exec(readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8'));
   const DB={prepare(sql) {
     const stmt=sqlite.prepare(sql);let args=[];
     return {bind(...values){args=values;return this;},async first(){return stmt.get(...args)??null;},async all(){return {results:stmt.all(...args)};},async run(){const r=stmt.run(...args);return {meta:{changes:Number(r.changes)}};}};
@@ -53,4 +53,47 @@ test('record pagination does not truncate',async()=>{
   for(let i=0;i<501;i++)insert.run('alice','r-'+i,record.timestamp,'rice','buffet','overproduction','lunch',1000,260,260,'manual');
   const first=await (await call('/api/records')).json();assert.equal(first.records.length,500);
   const second=await (await call('/api/records?cursor='+first.nextCursor)).json();assert.equal(second.records.length,1);assert.equal(second.nextCursor,null);sqlite.close();
+});
+
+test('catalog supports custom foods, preserves archived records and rejects removal',async()=>{
+ const {sqlite,call}=fixture();
+ const base=(await (await call('/api/settings')).json()).settings;
+ const {defaultCatalog}=await import('../dist/domain.js');
+ const settings={...base,catalog:{...defaultCatalog,couscous:{label:'كسكس',image:0,active:true,meals:['lunch']}},unitPrices:{...base.unitPrices,couscous:350}};
+ assert.equal((await call('/api/settings','PUT',{settings,revision:0})).status,200);
+ const saved=await (await call('/api/records','POST',{...record,food:'couscous'})).json();
+ assert.equal(saved.record.cost,875);
+ settings.catalog.couscous.active=false;
+ assert.equal((await call('/api/settings','PUT',{settings,revision:1})).status,200);
+ assert.equal((await (await call('/api/records','POST',{...record,food:'couscous'})).json()).record.cost,875);
+ delete settings.catalog.couscous;delete settings.unitPrices.couscous;
+ assert.equal((await call('/api/settings','PUT',{settings,revision:2})).status,400);
+ assert.equal((await call('/api/records','POST',{...record,id:'unknown',food:'couscous'},'bob')).status,400);
+ sqlite.close();
+});
+test('meal totals are isolated, revision checked and replaced instead of accumulated',async()=>{
+ const {sqlite,call}=fixture();
+ const service={date:'2026-01-04',meal:'lunch',meals:100,productionKg:50,revision:0};
+ assert.equal((await call('/api/services','PUT',service)).status,200);
+ assert.equal((await call('/api/services','PUT',service)).status,409);
+ assert.equal((await call('/api/services','PUT',{...service,meals:120,revision:1})).status,200);
+ const rows=(await (await call('/api/services')).json()).services;
+ assert.equal(rows.length,1);assert.equal(rows[0].meals,120);
+ assert.equal((await (await call('/api/services','GET',null,'bob')).json()).services.length,0);
+ assert.equal((await call('/api/services','PUT',{...service,date:'2026-02-30'})).status,400);
+ sqlite.close();
+});
+
+test('uploaded food images are private to their owner and require valid type',async()=>{
+ const {sqlite,worker}=fixture(),objects=new Map();
+ const PHOTOS={async put(k,b){objects.set(k,b);},async get(k){return objects.has(k)?{body:objects.get(k)}:null;}};
+ const req=(path,method,body,owner='alice',type='image/webp')=>worker.fetch(new Request('https://example.test'+path,{method,headers:{origin:'https://example.test','oai-authenticated-user-id':owner,'Content-Type':type},...(body?{body}:{})}),{DB:{},PHOTOS});
+ assert.equal((await req('/api/food-images','POST','not an image')).status,400);
+ const bytes=new Uint8Array([82,73,70,70,4,0,0,0,87,69,66,80]);
+ const upload=await (await req('/api/food-images','POST',bytes)).json();
+ assert.ok(upload.photo);
+ assert.equal((await req(upload.photo,'GET')).status,200);
+ assert.equal((await req(upload.photo,'GET',null,'bob')).status,404);
+ assert.equal((await req(upload.photo,'GET')).headers.get('Cache-Control'),'private, no-store');
+ sqlite.close();
 });

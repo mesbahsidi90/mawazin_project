@@ -1,4 +1,4 @@
-import {defaultSettings,validateSettings,validateRecord} from '../dist/domain.js';
+import {defaultSettings,validateSettings,validateRecord,validateService} from '../dist/domain.js';
 
 const json = (body,status=200) => new Response(JSON.stringify(body), {status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const dbFor = env => {if(!env.DB) throw new Error('Database binding missing'); return env.DB;};
@@ -9,7 +9,7 @@ async function getSettings(db,owner) {
 async function bodyOf(request) {
   if (!request.headers.get('content-type')?.startsWith('application/json')) throw new Error('JSON required');
   const body=await request.text();
-  if(body.length>20000) throw new Error('الطلب كبير جدًا');
+  if(body.length>100000) throw new Error('الطلب كبير جدًا');
   return JSON.parse(body);
 }
 export function createWorker(assets={}) {
@@ -29,13 +29,42 @@ export function createWorker(assets={}) {
     if(url.pathname==='/api/session' && request.method==='GET') return json({user:{id:owner,email:request.headers.get('oai-authenticated-user-email')??''},storage:'d1',scope:'personal'});
     try {
       const db=dbFor(env);
+      if(url.pathname==='/api/food-images' && request.method==='POST') {
+        if(request.headers.get('content-type')!=='image/webp') return json({error:'صورة غير صالحة؛ يلزم WebP'},400);
+        const bytes=await request.arrayBuffer();
+        const head=new Uint8Array(bytes);
+        if(bytes.byteLength>350000||bytes.byteLength<12||String.fromCharCode(...head.slice(0,4))!=='RIFF'||String.fromCharCode(...head.slice(8,12))!=='WEBP') return json({error:'صورة غير صالحة أو كبيرة جدًا'},400);
+        const id=crypto.randomUUID();
+        await env.PHOTOS.put(encodeURIComponent(owner)+'/'+id,bytes,{httpMetadata:{contentType:'image/webp'}});
+        return json({photo:'/api/food-images/'+id});
+      }
+      if(/^\/api\/food-images\/[a-f0-9-]{36}$/.test(url.pathname) && request.method==='GET') {
+        const object=await env.PHOTOS.get(encodeURIComponent(owner)+'/'+url.pathname.split('/').at(-1));
+        if(!object)return json({error:'الصورة غير موجودة'},404);
+        return new Response(object.body,{headers:{'Content-Type':'image/webp','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
+      }
       if(url.pathname==='/api/health' && request.method==='GET') {
         await db.prepare('SELECT 1').first();
         return json({ok:true,time:new Date().toISOString()});
       }
       if(url.pathname==='/api/settings' && request.method==='GET') return json(await getSettings(db,owner));
+      if(url.pathname==='/api/services' && request.method==='GET') {
+        const rows=await db.prepare('SELECT * FROM meal_services WHERE owner = ? ORDER BY date DESC, meal').bind(owner).all();
+        return json({services:rows.results.map(r=>({date:r.date,meal:r.meal,meals:r.meals,productionKg:r.production_grams/1000,revision:r.revision}))});
+      }
+      if(url.pathname==='/api/services' && request.method==='PUT') {
+        const r=validateService(await bodyOf(request));
+        const statement=r.revision===0
+          ? db.prepare('INSERT INTO meal_services (owner,date,meal,meals,production_grams,revision) VALUES (?,?,?,?,?,1) ON CONFLICT(owner,date,meal) DO NOTHING').bind(owner,r.date,r.meal,r.meals,Math.round(r.productionKg*1000))
+          : db.prepare('UPDATE meal_services SET meals=?,production_grams=?,revision=revision+1 WHERE owner=? AND date=? AND meal=? AND revision=?').bind(r.meals,Math.round(r.productionKg*1000),owner,r.date,r.meal,r.revision);
+        const result=await statement.run();
+        if(!result.meta?.changes) return json({error:'عُدلت الوجبة من جهاز آخر. أعد تحميل الوجبات قبل الحفظ.'},409);
+        return json({service:{...r,revision:r.revision+1}});
+      }
       if(url.pathname==='/api/settings' && request.method==='PUT') {
         const input=await bodyOf(request), settings=validateSettings(input.settings);
+        const previous=await getSettings(db,owner);
+        if(Object.keys(previous.settings.unitPrices).some(key=>!Object.hasOwn(settings.unitPrices,key))) return json({error:'لا تحذف الأصناف السابقة؛ أوقف ظهورها للحفاظ على السجلات.'},400);
         if(!Number.isInteger(input.revision)||input.revision<0) return json({error:'نسخة إعدادات غير صالحة'},400);
         const statement=input.revision===0
           ? db.prepare('INSERT INTO user_settings (owner,payload,revision) VALUES (?,?,1) ON CONFLICT(owner) DO NOTHING').bind(owner,JSON.stringify(settings))
