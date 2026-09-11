@@ -969,7 +969,10 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     try {
       const session=await api('/api/session');
       if(!session.user?.id) throw new Error('استجابة حساب غير صالحة');
-      if(session.role==='admin'&&!session.kitchenId){location.assign('/admin');return;}
+      if(session.role==='admin'){
+        $('#loginStatus').textContent='أنت مسجّل كأدمن. لدخول المطبخ استخدم بريد المدير وكلمة مروره، أو فعّل دعوة المطبخ.';
+        return;
+      }
       if(session.role==='waiting')throw new Error('لا يوجد مطبخ مرتبط بحسابك. أدخل رمز التفعيل الذي أعطاك الأدمن.');
       const loaded=await api('/api/settings');
       const kitchenResult=await api('/api/kitchen');
