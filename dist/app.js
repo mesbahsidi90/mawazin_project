@@ -953,8 +953,11 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     if(fragment.has(key)){$('#activationCode').value=fragment.get(key);sessionStorage.setItem('mawazin-'+key,fragment.get(key));history.replaceState(null,'',location.pathname);}
     else $('#activationCode').value=sessionStorage.getItem('mawazin-'+key)||'';
     if(stationOnly){$('#activationLabel').textContent='رمز ربط الجهاز من مدير المطبخ';$('#activationHint').textContent='افتح رابط الربط الذي أصدره مدير مطبخك، ثم اضغط تفعيل وربط.';$('#adminLink').hidden=true;$('#demoLogin').hidden=true;}
-    else document.querySelector('a[href^="/signin-with-chatgpt"]').href='/signin-with-chatgpt?return_to=%2Fkitchen';
-    $('#activationForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{await api(stationOnly?'/api/pair':'/api/claim-manager',{method:'POST',body:JSON.stringify({code:$('#activationCode').value.trim()})});sessionStorage.removeItem('mawazin-'+key);$('#activationCode').value='';await startAccount();}catch(error){$('#loginStatus').textContent=error.message;}finally{button.disabled=false;}};
+    $('#managerLogin').hidden=stationOnly;$('#activationCredentials').hidden=stationOnly;
+    for(const field of $('#activationCredentials').querySelectorAll('input'))field.disabled=stationOnly;
+    $('#activationDetails').open=stationOnly||!!$('#activationCode').value;
+    $('#managerLogin').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:$('#loginEmail').value,password:$('#loginPassword').value})});$('#loginPassword').value='';await startAccount();}catch(error){$('#loginStatus').textContent=error.message;}finally{button.disabled=false;}};
+    $('#activationForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{if(!stationOnly&&$('#activatePassword').value!==$('#confirmPassword').value)throw Error('كلمتا المرور غير متطابقتين');await api(stationOnly?'/api/pair':'/api/auth/activate',{method:'POST',body:JSON.stringify({code:$('#activationCode').value.trim(),...(!stationOnly?{email:$('#activateEmail').value,password:$('#activatePassword').value}:{})})});$('#activatePassword').value='';$('#confirmPassword').value='';sessionStorage.removeItem('mawazin-'+key);$('#activationCode').value='';await startAccount();}catch(error){$('#loginStatus').textContent=error.message;}finally{button.disabled=false;}};
     $('#deviceForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{const result=await api('/api/devices',{method:'POST',body:JSON.stringify({name:$('#deviceName').value})});$('#pairUrl').value=result.url;$('#deviceHandoff').hidden=false;$('#deviceStatus').textContent='الرابط صالح حتى '+new Date(result.expiresAt).toLocaleTimeString('ar-DZ');event.target.reset();await loadDevices();}catch(error){$('#deviceStatus').textContent=error.message;}finally{button.disabled=false;}};
     $('#refreshDevices').onclick=loadDevices;
     $('#copyPair').onclick=async()=>{try{await navigator.clipboard.writeText($('#pairUrl').value);$('#deviceStatus').textContent='تم نسخ رابط الجهاز.';}catch{$('#deviceStatus').textContent='انسخ الرابط من الحقل أعلاه.';}};
@@ -994,15 +997,16 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     $('#devicePanel').hidden=demo||stationOnly;
     services=[];if(!stationOnly){loadServices();if(!demo)loadDevices();}setWorkerStep(1);switchView(location.pathname==='/kitchen'?'dashboard':'worker');
   }
-  function logout() {
+  async function logout() {
     if(syncing||submitting||photoUploads||$('#settingsSave').disabled||$('#serviceSave').disabled&&servicesReady) {showToast('انتظر إتمام العملية','يمكنك تسجيل الخروج بعد انتهاء محاولة الحفظ.',true);return;}
     if(pending.length&&!window.confirm(`يوجد ${pending.length} سجلًا معلقًا سيبقى على هذا الجهاز للحساب نفسه. تسجيل الخروج؟`)) return;
     const wasDemo=demo;
+    if(!wasDemo){try{await api('/api/auth/logout',{method:'POST',body:'{}'});}catch(error){showToast('تعذر تسجيل الخروج',error.message,true);return;}}
     authAttempt++;
     account=null;kitchen=null;demo=false;records=[];pending=[];lastSync=null;settings=structuredClone(defaultSettings);
     $('#appShell').hidden=true;$('#loginPanel').hidden=false;
     $('#loginStatus').textContent='تم إغلاق الجلسة.';
-    if(!wasDemo) window.location.assign('/signout-with-chatgpt?return_to=%2F');
+    if(!wasDemo) window.location.assign('/kitchen');
   }
   function setInputMode() {
     inputMode=$('#inputMode').value;
@@ -1083,8 +1087,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   function initializeEnhancements() {
     initializeAccess();
     if(stationOnly){
-      const login=document.querySelector('a[href^="/signin-with-chatgpt"]');
-      login.href='/signin-with-chatgpt?return_to=%2Fstation';
+
       $('#loginTitle').textContent='تشغيل محطة العامل';
       $('#inputMode').value='manual';
     }
@@ -1130,7 +1133,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').then(reg=>{
       if(reg.active)$('#offlineReadiness').textContent='واجهة التطبيق متاحة دون اتصال بعد التحميل. الدخول الجديد يحتاج الإنترنت؛ تبقى التسجيلات المعلقة محفوظة.';
     }).catch(()=>{ $('#offlineReadiness').textContent='التخزين المؤقت للواجهة غير متاح. أبقِ الصفحة مفتوحة عند انقطاع الإنترنت.'; });
-    void startAccount();
+    if(stationOnly||!$('#activationCode').value)void startAccount();else $('#loginStatus').textContent='أدخل بريدك وكلمة المرور لتفعيل الدعوة.';
   }
 
   function initialize() {

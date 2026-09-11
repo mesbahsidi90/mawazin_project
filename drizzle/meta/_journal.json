@@ -29,6 +29,13 @@
       "when": 1789141873871,
       "tag": "0003_organic_scalphunter",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789161539179,
+      "tag": "0004_nosy_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }

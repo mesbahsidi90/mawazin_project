@@ -35,6 +35,13 @@ export const kitchens = sqliteTable('kitchens', {
 });
 
 export const admins = sqliteTable('platform_admins',{slot:text('slot').primaryKey(),actor:text('actor').notNull()});
+export const managerAccounts = sqliteTable('manager_accounts',{
+ actor:text('actor').primaryKey(),email:text('email').notNull().unique(),passwordHash:text('password_hash').notNull(),salt:text('salt').notNull(),version:text('version').notNull(),
+});
+export const managerSessions = sqliteTable('manager_sessions',{
+ hash:text('hash').primaryKey(),actor:text('actor').notNull().references(()=>managerAccounts.actor),version:text('version').notNull(),expiresAt:integer('expires_at').notNull(),
+});
+export const authLimits = sqliteTable('auth_limits',{key:text('key').primaryKey(),count:integer('count').notNull(),expiresAt:integer('expires_at').notNull()});
 export const memberships = sqliteTable('kitchen_memberships',{actor:text('actor').primaryKey(),kitchenId:text('kitchen_id').notNull().references(()=>kitchens.id)});
 export const invites = sqliteTable('manager_invites',{
  hash:text('hash').primaryKey(),kitchenId:text('kitchen_id').notNull().references(()=>kitchens.id),expiresAt:integer('expires_at').notNull(),claimedBy:text('claimed_by'),

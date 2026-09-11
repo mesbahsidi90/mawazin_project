@@ -18,14 +18,14 @@
         <p class="eyebrow">موازين / مساحة المطبخ</p>
         <h1 id="loginTitle">كل تسجيل، خطوة لتقليل الهدر.</h1>
         <p>ادخل إلى سجلاتك وتقاريرك وإعدادات مطبخك. تحفظ السجلات مركزيًا في وضع الحساب.</p>
-        <a class="button primary wide" href="/signin-with-chatgpt?return_to=%2F" target="_top">الدخول باستخدام ChatGPT</a>
+        <form id="managerLogin" class="activation-form"><label for="loginEmail">البريد الإلكتروني</label><input id="loginEmail" type="email" autocomplete="username" required dir="ltr"><label for="loginPassword">كلمة المرور</label><input id="loginPassword" type="password" autocomplete="current-password" required minlength="15"><button class="button primary" type="submit">دخول المطبخ</button><p>نسيت كلمة المرور؟ اطلب رابط تفعيل جديدًا من الأدمن واستخدم بريدك نفسه.</p></form>
         <button id="resumeSession" class="button ghost wide" type="button">متابعة الحساب الحالي / إعادة الاتصال</button>
-        <form id="activationForm" class="activation-form"><label id="activationLabel" for="activationCode">رمز تفعيل المطبخ من الأدمن</label><input id="activationCode" autocomplete="off" maxlength="200" required dir="ltr"><button class="button primary" type="submit">تفعيل وربط</button><p id="activationHint">يُنشئ الأدمن المطبخ، ثم يمنحك رابط التفعيل. سجّل الدخول بحسابك قبل استعمال الرمز.</p></form>
+        <details id="activationDetails"><summary>لدي دعوة من الأدمن / تفعيل حساب</summary><form id="activationForm" class="activation-form"><label id="activationLabel" for="activationCode">رمز تفعيل المطبخ من الأدمن</label><input id="activationCode" autocomplete="off" maxlength="200" required dir="ltr"><div id="activationCredentials" class="activation-form"><label for="activateEmail">بريد المدير</label><input id="activateEmail" type="email" autocomplete="username" required dir="ltr"><label for="activatePassword">كلمة مرور جديدة — 15 حرفًا على الأقل</label><input id="activatePassword" type="password" autocomplete="new-password" minlength="15" required><label for="confirmPassword">تأكيد كلمة المرور</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="15" required></div><button class="button primary" type="submit">تفعيل وربط</button><p id="activationHint">حدد بريدك وكلمة مرورك لتفعيل الدعوة. لا تُنشأ مطابخ من هذه الصفحة.</p></form></details>
         <a href="/admin" id="adminLink">لوحة الأدمن</a>
         <p id="loginStatus" role="status">جارٍ التحقق من الجلسة…</p>
         <hr />
         <button id="demoLogin" class="button ghost wide" type="button">استكشاف النسخة التجريبية دون حساب</button>
-        <p class="form-hint">وضع التجربة محلي ومنفصل عن حسابك. لا نطلب كلمة مرور ولا نحفظها هنا.</p>
+        <p class="form-hint">وضع التجربة محلي ومنفصل عن مطبخك.</p>
       </article>
     </section>
     <div class="app-shell" id="appShell" hidden>

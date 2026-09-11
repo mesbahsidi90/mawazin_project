@@ -1,11 +1,13 @@
 import {defaultSettings} from '../dist/domain.js';
+import {managerAuth,managerIdentity} from './manager-auth.js';
 const digest = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');
 const secret = () => crypto.randomUUID().replaceAll('-','')+crypto.randomUUID().replaceAll('-','');
 const reply = (body,status=200,headers={}) => new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...headers}});
 async function input(request){if(!request.headers.get('content-type')?.startsWith('application/json'))throw new Error('JSON required');const text=await request.text();if(text.length>100000)throw new Error('الطلب كبير جدًا');return JSON.parse(text);}
 function label(value){if(typeof value!=='string'||!value.trim()||value.trim().length>100)throw new Error('اسم غير صالح');return value.trim();}
 export async function access(request,env,url) {
-  const db=env.DB,actor=request.headers.get('oai-authenticated-user-id'),now=Date.now();
+  const db=env.DB,platformActor=request.headers.get('oai-authenticated-user-id'),now=Date.now();
+  const authResponse=await managerAuth(request,env,url);if(authResponse)return authResponse;
   const station=url.pathname.startsWith('/api/station/');
   if(station) {
     url.pathname=url.pathname.replace('/api/station/','/api/');
@@ -25,6 +27,9 @@ export async function access(request,env,url) {
     await db.prepare('UPDATE kitchen_devices SET last_seen=? WHERE id=?').bind(new Date().toISOString(),device.id).run();
     return {owner:device.owner,kitchenId:device.kitchen_id,deviceId:device.id,role:'device',queueId:device.owner+':device:'+device.id};
   }
+  const identity=await managerIdentity(request,db);
+  const admin=platformActor?await db.prepare('SELECT actor FROM platform_admins WHERE actor=?').bind(platformActor).first():null;
+  const actor=url.pathname.startsWith('/api/admin/')?platformActor:identity?.actor||platformActor;
   if(!actor)return reply({error:'يلزم تسجيل الدخول'},401);
   if(url.pathname==='/api/admin/setup'&&request.method==='POST') {
     const {code}=await input(request);
@@ -33,9 +38,9 @@ export async function access(request,env,url) {
     const row=await db.prepare("SELECT actor FROM platform_admins WHERE slot='primary'").first();
     return row.actor===actor?reply({ok:true}):reply({error:'تم تفعيل حساب الأدمن مسبقًا'},403);
   }
-  const admin=await db.prepare('SELECT actor FROM platform_admins WHERE actor=?').bind(actor).first();
   if(url.pathname.startsWith('/api/admin/')) {
     if(!admin)return reply({error:'هذه العملية للأدمن فقط'},403);
+    if(url.pathname==='/api/admin/session'&&request.method==='GET')return reply({role:'admin'});
     if(url.pathname==='/api/admin/kitchens'&&request.method==='GET') {
       const rows=await db.prepare('SELECT k.id,k.created_at,s.payload,(SELECT COUNT(*) FROM kitchen_memberships m WHERE m.kitchen_id=k.id) AS managers,(SELECT COUNT(*) FROM kitchen_devices d WHERE d.kitchen_id=k.id AND d.status!=\'revoked\') AS devices FROM kitchens k LEFT JOIN user_settings s ON s.owner=k.owner ORDER BY k.created_at DESC').all();
       return reply({kitchens:rows.results.map(r=>({id:r.id,name:r.payload?JSON.parse(r.payload).siteName:'مطبخ',createdAt:r.created_at,managers:r.managers,devices:r.devices}))});
@@ -57,20 +62,11 @@ export async function access(request,env,url) {
     }
     return reply({error:'المسار غير موجود'},404);
   }
-  if(url.pathname==='/api/claim-manager'&&request.method==='POST') {
-    const {code}=await input(request);if(typeof code!=='string'||code.length>200)return reply({error:'رمز غير صالح'},400);
-    const hash=await digest(code.trim());
-    const invitation=await db.prepare('SELECT * FROM manager_invites WHERE hash=?').bind(hash).first();
-    if(!invitation||invitation.expires_at<=now||(invitation.claimed_by&&invitation.claimed_by!==actor))return reply({error:'رمز التفعيل منتهي أو مستعمل'},400);
-    const existing=await db.prepare('SELECT kitchen_id FROM kitchen_memberships WHERE actor=?').bind(actor).first();
-    if(existing&&existing.kitchen_id!==invitation.kitchen_id)return reply({error:'حسابك مرتبط بمطبخ آخر'},409);
-    await db.batch([db.prepare('UPDATE manager_invites SET claimed_by=? WHERE hash=? AND expires_at>? AND (claimed_by IS NULL OR claimed_by=?)').bind(actor,hash,now,actor),db.prepare('INSERT INTO kitchen_memberships (actor,kitchen_id) SELECT ?,kitchen_id FROM manager_invites WHERE hash=? AND claimed_by=? AND expires_at>? ON CONFLICT(actor) DO NOTHING').bind(actor,hash,actor,now)]);
-    const membership=await db.prepare('SELECT kitchen_id FROM kitchen_memberships WHERE actor=?').bind(actor).first();
-    return membership?.kitchen_id===invitation.kitchen_id?reply({ok:true}):reply({error:'تعذر تفعيل الرمز'},409);
-  }
+  if(url.pathname==='/api/claim-manager')return reply({error:'فعّل حساب المدير بالبريد وكلمة المرور'},410);
+  if(!identity&&!admin)return reply({error:'ادخل بالبريد وكلمة المرور أو فعّل دعوة الأدمن'},401);
   const kitchen=await db.prepare('SELECT k.id,k.owner FROM kitchen_memberships m JOIN kitchens k ON k.id=m.kitchen_id WHERE m.actor=?').bind(actor).first()||await db.prepare('SELECT id,owner FROM kitchens WHERE owner=?').bind(actor).first();
-  const role=admin?'admin':kitchen?'manager':'waiting';
-  if(url.pathname==='/api/session')return reply({user:{id:kitchen?.owner||actor,email:request.headers.get('oai-authenticated-user-email')||''},role,kitchenId:kitchen?.id||null,storage:'d1'});
+  const role=(!identity&&admin)?'admin':kitchen?'manager':'waiting';
+  if(url.pathname==='/api/session')return reply({user:{id:kitchen?.owner||actor,email:identity?.email||request.headers.get('oai-authenticated-user-email')||''},role,kitchenId:kitchen?.id||null,storage:'d1'});
   if(!kitchen)return reply({error:'اطلب رمز تفعيل مطبخك من الأدمن'},403);
   if(url.pathname==='/api/kitchen'&&request.method!=='GET')return reply({error:'إنشاء المطابخ من لوحة الأدمن فقط'},403);
   if(url.pathname==='/api/devices'&&request.method==='GET') {

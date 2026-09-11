@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -13,9 +14,13 @@ function fixture() {
     return {bind(...values){args=values;return this;},async first(){return stmt.get(...args)??null;},async all(){return {results:stmt.all(...args)};},async run(){const r=stmt.run(...args);return {meta:{changes:Number(r.changes)}};}};
   },async batch(statements){sqlite.exec('BEGIN');try{const results=[];for(const statement of statements)results.push(await statement.run());sqlite.exec('COMMIT');return results;}catch(error){sqlite.exec('ROLLBACK');throw error;}}};
   for(const owner of ['alice','bob'])sqlite.prepare('INSERT INTO kitchens (id,owner,created_at) VALUES (?,?,?)').run('k-'+owner,owner,new Date().toISOString());
+  for(const owner of ['alice','bob']){
+    sqlite.prepare('INSERT INTO manager_accounts VALUES (?,?,?,?,?)').run(owner,owner+'@test.example','unused','unused','v1');
+    sqlite.prepare('INSERT INTO manager_sessions VALUES (?,?,?,?)').run(createHash('sha256').update(owner).digest('hex'),owner,'v1',Date.now()+1000000);
+  }
   const worker=createWorker({'/index.html':{body:'shell',type:'text/html'}});
   const call=async(path,method='GET',body,owner='alice',origin='https://example.test')=>{
-    const headers={'Content-Type':'application/json',origin};if(owner)headers['oai-authenticated-user-id']=owner;
+    const headers={'Content-Type':'application/json',origin};if(owner){headers['oai-authenticated-user-id']=owner;headers.cookie='__Host-mawazin_manager='+owner;}
     return worker.fetch(new Request('https://example.test'+path,{method,headers,...(body?{body:JSON.stringify(body)}:{})}),{DB});
   };
   return {sqlite,worker,call,DB};
@@ -88,7 +93,7 @@ test('meal totals are isolated, revision checked and replaced instead of accumul
 test('uploaded food images are private to their owner and require valid type',async()=>{
  const {sqlite,worker,DB}=fixture(),objects=new Map();
  const PHOTOS={async put(k,b){objects.set(k,b);},async get(k){return objects.has(k)?{body:objects.get(k)}:null;}};
- const req=(path,method,body,owner='alice',type='image/webp')=>worker.fetch(new Request('https://example.test'+path,{method,headers:{origin:'https://example.test','oai-authenticated-user-id':owner,'Content-Type':type},...(body?{body}:{})}),{DB,PHOTOS});
+ const req=(path,method,body,owner='alice',type='image/webp')=>worker.fetch(new Request('https://example.test'+path,{method,headers:{origin:'https://example.test','oai-authenticated-user-id':owner,'Content-Type':type,cookie:'__Host-mawazin_manager='+owner},...(body?{body}:{})}),{DB,PHOTOS});
  assert.equal((await req('/api/food-images','POST','not an image')).status,400);
  const bytes=new Uint8Array([82,73,70,70,4,0,0,0,87,69,66,80]);
  const upload=await (await req('/api/food-images','POST',bytes)).json();
