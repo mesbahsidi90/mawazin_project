@@ -2,6 +2,8 @@ import {defaultCatalog,validateService,serviceMetrics,defaultSettings,validateSe
 import {queueList,queueWrite,queueRemove} from './outbox.js';
 (() => {
   "use strict";
+  const stationOnly=location.pathname==='/station';
+  document.documentElement.classList.toggle('station-only',stationOnly);
 
   const STORAGE_KEY = "mizan-waste-records-v1";
   const DEFAULT_WEIGHT = 2.48;
@@ -339,6 +341,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   }
 
   function switchView(name) {
+    if(stationOnly && name!=='worker') return;
     document.body.classList.toggle("worker-mode",name==="worker");
     if (!VIEW_META[name] || (!account && !demo)) return;
 
@@ -952,7 +955,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     $('#resetDemoButton').hidden=!demo;
     $('#reportSource').value=demo?'':'manual';
     applySettings();setInputMode();renderWorkerRecent();renderDashboard();renderNetwork();
-    services=[];loadServices();setWorkerStep(1);switchView('worker');
+    services=[];if(!stationOnly)loadServices();setWorkerStep(1);switchView('worker');
   }
   function logout() {
     if(syncing||submitting||photoUploads||$('#settingsSave').disabled||$('#serviceSave').disabled&&servicesReady) {showToast('انتظر إتمام العملية','يمكنك تسجيل الخروج بعد انتهاء محاولة الحفظ.',true);return;}
@@ -1039,6 +1042,18 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     ]),'text/csv;charset=utf-8');
   }
   function initializeEnhancements() {
+    if(stationOnly){
+      const login=document.querySelector('a[href^="/signin-with-chatgpt"]');
+      login.href='/signin-with-chatgpt?return_to=%2Fstation';
+      $('#loginTitle').textContent='تشغيل محطة العامل';
+      $('#inputMode').value='manual';
+    }
+    $('#stationFullscreen').hidden=!stationOnly||!document.fullscreenEnabled;
+    $('#stationFullscreen').addEventListener('click',async()=>{
+      try{await document.documentElement.requestFullscreen();}catch{showToast('تعذر ملء الشاشة','يمكن فتح المحطة من متصفح يدعم ملء الشاشة.');}
+    });
+    document.addEventListener('fullscreenchange',()=>{$('#stationFullscreen').hidden=!stationOnly||!!document.fullscreenElement||!document.fullscreenEnabled;});
+
     initializeWorkstation();
     $('#demoLogin').addEventListener('click',()=>{
       authAttempt++;

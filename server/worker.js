@@ -17,7 +17,8 @@ export function createWorker(assets={}) {
     const url=new URL(request.url);
     if(!url.pathname.startsWith('/api/')) {
       if(request.method!=='GET' && request.method!=='HEAD') return new Response('Method not allowed',{status:405});
-      const key=url.pathname==='/'?'/index.html':url.pathname;
+      if(url.pathname==='/station/') return Response.redirect(url.origin+'/station'+url.search,308);
+      const key=(url.pathname==='/'||url.pathname==='/station')?'/index.html':url.pathname;
       const asset=assets[key];
       if(!asset) return new Response('Not found',{status:404});
       return new Response(request.method==='HEAD'?null:asset.body,{headers:{'Content-Type':asset.type,'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin'}});

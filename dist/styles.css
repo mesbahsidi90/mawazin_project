@@ -2091,3 +2091,12 @@ td strong {
 .stage-choices button {min-height:80px;font-size:1.125rem;white-space:normal;}
 .stage-choices [aria-pressed=true] {background:#d3f3e8;border:3px solid #0f766e;}
 #workerView[data-step="2"] .waste-details {grid-template-columns:minmax(0,1fr);}
+
+/* Station presentation; OS lockdown is configured on the tablet. */
+.station-only .sidebar,.station-only .mobile-nav,.station-only .topbar,
+.station-only #dataScope,.station-only #mobileLogout,.station-only #logoutButton,
+.station-only [data-view-target],.station-only .view:not(#workerView) {display:none!important;}
+.station-only .main-content {margin:0 auto;padding-bottom:20px;}
+.station-only .connection-bar {font-size:.875rem;margin-top:0;}
+.station-only #workerView {min-height:calc(100dvh - 90px);}
+.station-only:fullscreen {background:var(--canvas);}
