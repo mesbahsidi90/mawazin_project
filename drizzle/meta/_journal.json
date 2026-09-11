@@ -15,6 +15,13 @@
       "when": 1789079265855,
       "tag": "0001_damp_morlocks",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789140229641,
+      "tag": "0002_abandoned_the_fury",
+      "breakpoints": true
     }
   ]
 }

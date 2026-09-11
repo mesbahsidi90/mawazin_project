@@ -97,3 +97,25 @@ test('uploaded food images are private to their owner and require valid type',as
  assert.equal((await req(upload.photo,'GET')).headers.get('Cache-Control'),'private, no-store');
  sqlite.close();
 });
+
+test('kitchen creation is idempotent, owner isolated and preserves existing records and name',async()=>{
+ const {sqlite,call}=fixture();
+ await call('/api/records','POST',record);
+ const initial={...defaultSettings,siteName:'مطبخ الاختبار'};
+ await call('/api/settings','PUT',{settings:initial,revision:0});
+ assert.equal((await call('/api/kitchen')).status,404);
+ const first=(await (await call('/api/kitchen','POST',{})).json()).kitchen;
+ const retry=(await (await call('/api/kitchen','POST',{owner:'bob',id:'forged'})).json()).kitchen;
+ assert.equal(first.id,retry.id);assert.equal(first.name,'مطبخ الاختبار');assert.equal(first.role,'owner');
+ const other=(await (await call('/api/kitchen','POST',{},'bob')).json()).kitchen;
+ assert.notEqual(first.id,other.id);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM kitchens').get().n,2);
+ assert.equal((await (await call('/api/records')).json()).records.length,1);
+ assert.equal((await (await call('/api/records','GET',null,'bob')).json()).records.length,0);
+ await call('/api/settings','PUT',{settings:{...initial,siteName:'مطبخ جديد الاسم'},revision:1});
+ const renamed=(await (await call('/api/kitchen')).json()).kitchen;
+ assert.equal(renamed.id,first.id);assert.equal(renamed.name,'مطبخ جديد الاسم');
+ assert.equal((await call('/api/kitchen','POST',{},null)).status,401);
+ assert.equal((await call('/api/kitchen','POST',{},'alice','https://evil.test')).status,403);
+ sqlite.close();
+});

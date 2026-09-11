@@ -2,6 +2,7 @@ import {defaultCatalog,validateService,serviceMetrics,defaultSettings,validateSe
 import {queueList,queueWrite,queueRemove} from './outbox.js';
 (() => {
   "use strict";
+  let kitchen=null;
   const stationOnly=location.pathname==='/station';
   document.documentElement.classList.toggle('station-only',stationOnly);
 
@@ -938,8 +939,10 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
       const session=await api('/api/session');
       if(!session.user?.id) throw new Error('استجابة حساب غير صالحة');
       const loaded=await api('/api/settings');
+      const kitchenResult=await api('/api/kitchen',{method:'POST',body:'{}'});
       const queued=await queueList(session.user.id);
       if(attempt!==authAttempt) return;
+      kitchen=kitchenResult.kitchen;
       account=session.user;demo=false;settings=loaded.settings;settingsRevision=loaded.revision;
       records=[];pending=queued;mergeRecords([],queued);lastSync=null;
       enterApplication();await synchronize();
@@ -949,8 +952,11 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   }
   function enterApplication() {
     $('#loginPanel').hidden=true;$('#appShell').hidden=false;
+    $('#kitchenId').textContent=demo?'مطبخ تجريبي محلي':kitchen?.id??'غير متاح';
+    $('#kitchenOwner').textContent=demo?'تجربة':account.email||'الحساب الحالي';
+    $('#kitchenCreated').textContent=demo?'—':kitchen?.createdAt?dateFormatter.format(new Date(kitchen.createdAt)):'—';
     $('#accountLabel').textContent=demo?'حساب تجريبي':account.email||'الحساب الحالي';
-    $('#storageLabel').textContent=demo?'محلي على هذا الجهاز':'تخزين مركزي / مساحة شخصية';
+    $('#storageLabel').textContent=demo?'محلي على هذا الجهاز':'تخزين مركزي / مطبخك';
     $('#systemStorage').textContent=demo?'تجريبي محلي، لا يُرسل للخادم':'D1 مركزي، مع قائمة إرسال مؤقتة على الجهاز';
     $('#resetDemoButton').hidden=!demo;
     $('#reportSource').value=demo?'':'manual';
@@ -962,7 +968,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     if(pending.length&&!window.confirm(`يوجد ${pending.length} سجلًا معلقًا سيبقى على هذا الجهاز للحساب نفسه. تسجيل الخروج؟`)) return;
     const wasDemo=demo;
     authAttempt++;
-    account=null;demo=false;records=[];pending=[];lastSync=null;settings=structuredClone(defaultSettings);
+    account=null;kitchen=null;demo=false;records=[];pending=[];lastSync=null;settings=structuredClone(defaultSettings);
     $('#appShell').hidden=true;$('#loginPanel').hidden=false;
     $('#loginStatus').textContent='تم إغلاق الجلسة.';
     if(!wasDemo) window.location.assign('/signout-with-chatgpt?return_to=%2F');
@@ -984,6 +990,8 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     $('#reportFood').value=reportFood;
 
     $('#siteNameLabel').textContent=settings.siteName;
+    $('#kitchenName').textContent=settings.siteName;
+    if(kitchen)kitchen.name=settings.siteName;
     updateCostPreview();
   }
   function renderSettings() {
@@ -1071,7 +1079,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
       if(demo){showToast('وضع التجربة','هذا الوضع لا يتصل بقاعدة بيانات.');return;}
       try{await api('/api/health');showToast('الخادم يستجيب','تم تأكيد اتصال الخادم بقاعدة البيانات.');}catch(error){showToast('فشل فحص الاتصال',error.message,true);}
     });
-    $('#backupButton').addEventListener('click',()=>download('mawazin-backup.json',JSON.stringify({services,version:3,exportedAt:new Date().toISOString(),demo,settings,records,pending},null,2),'application/json'));
+    $('#backupButton').addEventListener('click',()=>download('mawazin-backup.json',JSON.stringify({kitchen:demo?null:kitchen,services,version:3,exportedAt:new Date().toISOString(),demo,settings,records,pending},null,2),'application/json'));
     $('#legacyBackup').addEventListener('click',()=>{
       try {const legacy=localStorage.getItem(STORAGE_KEY);if(!legacy){showToast('لا توجد بيانات قديمة','لم نعثر على سجلات النسخة الأولى في هذا المتصفح.');return;}download('mawazin-legacy.json',legacy,'application/json');}
       catch {showToast('تعذر القراءة','التخزين المحلي غير متاح.',true);}

@@ -30,6 +30,18 @@ export function createWorker(assets={}) {
     if(url.pathname==='/api/session' && request.method==='GET') return json({user:{id:owner,email:request.headers.get('oai-authenticated-user-email')??''},storage:'d1',scope:'personal'});
     try {
       const db=dbFor(env);
+      if(url.pathname==='/api/kitchen' && ['GET','POST'].includes(request.method)) {
+        // One kitchen per owner. The unique owner link retains the existing data
+        // namespace (including photos and pending retries) without copying records.
+        if(request.method==='POST') {
+          await db.prepare('INSERT INTO kitchens (id,owner,created_at) VALUES (?,?,?) ON CONFLICT(owner) DO NOTHING')
+            .bind(crypto.randomUUID(),owner,new Date().toISOString()).run();
+        }
+        const row=await db.prepare('SELECT id,created_at FROM kitchens WHERE owner = ?').bind(owner).first();
+        if(!row)return json({error:'لم يتم إنشاء المطبخ بعد'},404);
+        const {settings}=await getSettings(db,owner);
+        return json({kitchen:{id:row.id,name:settings.siteName,createdAt:row.created_at,role:'owner'}});
+      }
       if(url.pathname==='/api/food-images' && request.method==='POST') {
         if(request.headers.get('content-type')!=='image/webp') return json({error:'صورة غير صالحة؛ يلزم WebP'},400);
         const bytes=await request.arrayBuffer();

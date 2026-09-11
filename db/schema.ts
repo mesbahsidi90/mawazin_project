@@ -26,3 +26,9 @@ export const services = sqliteTable('meal_services', {
   meals:integer('meals').notNull(), productionGrams:integer('production_grams').notNull(),
   revision:integer('revision').notNull().default(1),
 }, table=>[primaryKey({columns:[table.owner,table.date,table.meal]})]);
+
+export const kitchens = sqliteTable('kitchens', {
+  id:text('id').primaryKey(),
+  owner:text('owner').notNull().unique(),
+  createdAt:text('created_at').notNull(),
+});

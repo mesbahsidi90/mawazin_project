@@ -449,7 +449,9 @@
         <section class="view" id="settingsView" data-view="settings" hidden>
           <div class="settings-grid">
             <article class="card settings-card">
-              <p class="eyebrow">إعدادات الحساب</p><h2>المطبخ والتكاليف</h2>
+              <p class="eyebrow">بيانات المطبخ</p><h2 id="kitchenName">مطبخك</h2>
+              <dl class="system-list"><dt>معرّف المطبخ</dt><dd id="kitchenId"></dd><dt>المالك</dt><dd id="kitchenOwner"></dd><dt>تاريخ الإنشاء</dt><dd id="kitchenCreated"></dd></dl>
+              <p class="form-hint">مطبخ واحد لكل حساب حاليًا. الاسم أدناه هو اسم المطبخ في التقارير ومحطة العامل.</p>
               <form id="settingsForm">
                 <label class="input-label"><span>اسم المطبخ</span><input id="settingName" maxlength="80" required /></label>
                 <label class="input-label"><span>حد التنبيه اليومي للهدر (كغ)</span><input id="settingTarget" type="number" min="0" max="10000" step="0.1" required /></label>

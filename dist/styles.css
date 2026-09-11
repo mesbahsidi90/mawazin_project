@@ -2100,3 +2100,5 @@ td strong {
 .station-only .connection-bar {font-size:.875rem;margin-top:0;}
 .station-only #workerView {min-height:calc(100dvh - 90px);}
 .station-only:fullscreen {background:var(--canvas);}
+
+#kitchenId,#kitchenOwner {overflow-wrap:anywhere;}
