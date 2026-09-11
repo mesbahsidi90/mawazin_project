@@ -11,13 +11,14 @@ function fixture() {
   const DB={prepare(sql) {
     const stmt=sqlite.prepare(sql);let args=[];
     return {bind(...values){args=values;return this;},async first(){return stmt.get(...args)??null;},async all(){return {results:stmt.all(...args)};},async run(){const r=stmt.run(...args);return {meta:{changes:Number(r.changes)}};}};
-  }};
+  },async batch(statements){sqlite.exec('BEGIN');try{const results=[];for(const statement of statements)results.push(await statement.run());sqlite.exec('COMMIT');return results;}catch(error){sqlite.exec('ROLLBACK');throw error;}}};
+  for(const owner of ['alice','bob'])sqlite.prepare('INSERT INTO kitchens (id,owner,created_at) VALUES (?,?,?)').run('k-'+owner,owner,new Date().toISOString());
   const worker=createWorker({'/index.html':{body:'shell',type:'text/html'}});
   const call=async(path,method='GET',body,owner='alice',origin='https://example.test')=>{
     const headers={'Content-Type':'application/json',origin};if(owner)headers['oai-authenticated-user-id']=owner;
     return worker.fetch(new Request('https://example.test'+path,{method,headers,...(body?{body:JSON.stringify(body)}:{})}),{DB});
   };
-  return {sqlite,worker,call};
+  return {sqlite,worker,call,DB};
 }
 const record={id:'rec-one',timestamp:'2026-01-04T10:00:00Z',food:'rice',stage:'buffet',reason:'overproduction',meal:'lunch',weight:2.5,source:'manual'};
 test('unauthenticated API and cross-origin writes denied',async()=>{
@@ -85,9 +86,9 @@ test('meal totals are isolated, revision checked and replaced instead of accumul
 });
 
 test('uploaded food images are private to their owner and require valid type',async()=>{
- const {sqlite,worker}=fixture(),objects=new Map();
+ const {sqlite,worker,DB}=fixture(),objects=new Map();
  const PHOTOS={async put(k,b){objects.set(k,b);},async get(k){return objects.has(k)?{body:objects.get(k)}:null;}};
- const req=(path,method,body,owner='alice',type='image/webp')=>worker.fetch(new Request('https://example.test'+path,{method,headers:{origin:'https://example.test','oai-authenticated-user-id':owner,'Content-Type':type},...(body?{body}:{})}),{DB:{},PHOTOS});
+ const req=(path,method,body,owner='alice',type='image/webp')=>worker.fetch(new Request('https://example.test'+path,{method,headers:{origin:'https://example.test','oai-authenticated-user-id':owner,'Content-Type':type},...(body?{body}:{})}),{DB,PHOTOS});
  assert.equal((await req('/api/food-images','POST','not an image')).status,400);
  const bytes=new Uint8Array([82,73,70,70,4,0,0,0,87,69,66,80]);
  const upload=await (await req('/api/food-images','POST',bytes)).json();
@@ -95,27 +96,5 @@ test('uploaded food images are private to their owner and require valid type',as
  assert.equal((await req(upload.photo,'GET')).status,200);
  assert.equal((await req(upload.photo,'GET',null,'bob')).status,404);
  assert.equal((await req(upload.photo,'GET')).headers.get('Cache-Control'),'private, no-store');
- sqlite.close();
-});
-
-test('kitchen creation is idempotent, owner isolated and preserves existing records and name',async()=>{
- const {sqlite,call}=fixture();
- await call('/api/records','POST',record);
- const initial={...defaultSettings,siteName:'مطبخ الاختبار'};
- await call('/api/settings','PUT',{settings:initial,revision:0});
- assert.equal((await call('/api/kitchen')).status,404);
- const first=(await (await call('/api/kitchen','POST',{})).json()).kitchen;
- const retry=(await (await call('/api/kitchen','POST',{owner:'bob',id:'forged'})).json()).kitchen;
- assert.equal(first.id,retry.id);assert.equal(first.name,'مطبخ الاختبار');assert.equal(first.role,'owner');
- const other=(await (await call('/api/kitchen','POST',{},'bob')).json()).kitchen;
- assert.notEqual(first.id,other.id);
- assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM kitchens').get().n,2);
- assert.equal((await (await call('/api/records')).json()).records.length,1);
- assert.equal((await (await call('/api/records','GET',null,'bob')).json()).records.length,0);
- await call('/api/settings','PUT',{settings:{...initial,siteName:'مطبخ جديد الاسم'},revision:1});
- const renamed=(await (await call('/api/kitchen')).json()).kitchen;
- assert.equal(renamed.id,first.id);assert.equal(renamed.name,'مطبخ جديد الاسم');
- assert.equal((await call('/api/kitchen','POST',{},null)).status,401);
- assert.equal((await call('/api/kitchen','POST',{},'alice','https://evil.test')).status,403);
  sqlite.close();
 });

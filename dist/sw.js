@@ -1,4 +1,4 @@
-const CACHE='mawazin-shell-v7';
+const CACHE='mawazin-shell-v8';
 const SHELL=['/','/station','/index.html','/styles.css','/food-images.css','/app.js','/domain.js','/outbox.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(async cache=>{
   // Only generic shell/assets. No account data, cookies, API responses or login redirects.

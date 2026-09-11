@@ -20,6 +20,8 @@
         <p>ادخل إلى سجلاتك وتقاريرك وإعدادات مطبخك. تحفظ السجلات مركزيًا في وضع الحساب.</p>
         <a class="button primary wide" href="/signin-with-chatgpt?return_to=%2F" target="_top">الدخول باستخدام ChatGPT</a>
         <button id="resumeSession" class="button ghost wide" type="button">متابعة الحساب الحالي / إعادة الاتصال</button>
+        <form id="activationForm" class="activation-form"><label id="activationLabel" for="activationCode">رمز تفعيل المطبخ من الأدمن</label><input id="activationCode" autocomplete="off" maxlength="200" required dir="ltr"><button class="button primary" type="submit">تفعيل وربط</button><p id="activationHint">يُنشئ الأدمن المطبخ، ثم يمنحك رابط التفعيل. سجّل الدخول بحسابك قبل استعمال الرمز.</p></form>
+        <a href="/admin" id="adminLink">لوحة الأدمن</a>
         <p id="loginStatus" role="status">جارٍ التحقق من الجلسة…</p>
         <hr />
         <button id="demoLogin" class="button ghost wide" type="button">استكشاف النسخة التجريبية دون حساب</button>
@@ -447,10 +449,11 @@
           </article>
         </section>
         <section class="view" id="settingsView" data-view="settings" hidden>
+          <article id="devicePanel" class="card device-panel"><h2>أجهزة المطبخ</h2><p>أضف التابلت هنا، ثم افتح رابط الربط عليه. الرابط صالح لعشر دقائق ويُستخدم مرة واحدة.</p><form id="deviceForm"><label>اسم الجهاز<input id="deviceName" maxlength="100" required placeholder="شاشة التحضير"></label><button class="button primary">إضافة جهاز</button></form><p id="deviceStatus" role="status"></p><div id="deviceHandoff" class="device-handoff" hidden><label>افتح هذا الرابط على التابلت<input id="pairUrl" readonly dir="ltr"></label><button id="copyPair" class="button ghost" type="button">نسخ رابط الجهاز</button></div><button id="refreshDevices" class="button ghost" type="button">تحديث حالة الأجهزة</button><div id="deviceList"></div></article>
           <div class="settings-grid">
             <article class="card settings-card">
               <p class="eyebrow">بيانات المطبخ</p><h2 id="kitchenName">مطبخك</h2>
-              <dl class="system-list"><dt>معرّف المطبخ</dt><dd id="kitchenId"></dd><dt>المالك</dt><dd id="kitchenOwner"></dd><dt>تاريخ الإنشاء</dt><dd id="kitchenCreated"></dd></dl>
+              <dl class="system-list"><dt>معرّف المطبخ</dt><dd id="kitchenId"></dd><dt>المدير</dt><dd id="kitchenOwner"></dd><dt>تاريخ الإنشاء</dt><dd id="kitchenCreated"></dd></dl>
               <p class="form-hint">مطبخ واحد لكل حساب حاليًا. الاسم أدناه هو اسم المطبخ في التقارير ومحطة العامل.</p>
               <form id="settingsForm">
                 <label class="input-label"><span>اسم المطبخ</span><input id="settingName" maxlength="80" required /></label>

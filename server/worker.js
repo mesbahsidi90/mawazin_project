@@ -1,4 +1,5 @@
 import {defaultSettings,validateSettings,validateRecord,validateService} from '../dist/domain.js';
+import {access} from './access.js';
 
 const json = (body,status=200) => new Response(JSON.stringify(body), {status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const dbFor = env => {if(!env.DB) throw new Error('Database binding missing'); return env.DB;};
@@ -18,29 +19,25 @@ export function createWorker(assets={}) {
     if(!url.pathname.startsWith('/api/')) {
       if(request.method!=='GET' && request.method!=='HEAD') return new Response('Method not allowed',{status:405});
       if(url.pathname==='/station/') return Response.redirect(url.origin+'/station'+url.search,308);
-      const key=(url.pathname==='/'||url.pathname==='/station')?'/index.html':url.pathname;
+      const key=(url.pathname==='/'||url.pathname==='/station'||url.pathname==='/kitchen')?'/index.html':url.pathname==='/admin'?'/admin.html':url.pathname;
       const asset=assets[key];
       if(!asset) return new Response('Not found',{status:404});
       return new Response(request.method==='HEAD'?null:asset.body,{headers:{'Content-Type':asset.type,'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin'}});
     }
     // These headers are trustworthy only behind Sites dispatch, never on a public standalone Worker.
-    const owner=request.headers.get('oai-authenticated-user-id');
-    if(!owner) return json({error:'يلزم تسجيل الدخول'},401);
+
     if(!['GET','HEAD'].includes(request.method) && request.headers.get('origin')!==url.origin) return json({error:'Origin غير مسموح'},403);
-    if(url.pathname==='/api/session' && request.method==='GET') return json({user:{id:owner,email:request.headers.get('oai-authenticated-user-email')??''},storage:'d1',scope:'personal'});
     try {
       const db=dbFor(env);
+      const context=await access(request,env,url);
+      if(context instanceof Response)return context;
+      const {owner,deviceId,role}=context;
+      if(url.pathname==='/api/session')return json({user:{id:context.queueId,email:''},role,kitchenId:context.kitchenId,storage:'d1'});
       if(url.pathname==='/api/kitchen' && ['GET','POST'].includes(request.method)) {
-        // One kitchen per owner. The unique owner link retains the existing data
-        // namespace (including photos and pending retries) without copying records.
-        if(request.method==='POST') {
-          await db.prepare('INSERT INTO kitchens (id,owner,created_at) VALUES (?,?,?) ON CONFLICT(owner) DO NOTHING')
-            .bind(crypto.randomUUID(),owner,new Date().toISOString()).run();
-        }
         const row=await db.prepare('SELECT id,created_at FROM kitchens WHERE owner = ?').bind(owner).first();
         if(!row)return json({error:'لم يتم إنشاء المطبخ بعد'},404);
         const {settings}=await getSettings(db,owner);
-        return json({kitchen:{id:row.id,name:settings.siteName,createdAt:row.created_at,role:'owner'}});
+        return json({kitchen:{id:row.id,name:settings.siteName,createdAt:row.created_at,role}});
       }
       if(url.pathname==='/api/food-images' && request.method==='POST') {
         if(request.headers.get('content-type')!=='image/webp') return json({error:'صورة غير صالحة؛ يلزم WebP'},400);
@@ -89,7 +86,7 @@ export function createWorker(assets={}) {
       if(url.pathname==='/api/records' && request.method==='GET') {
         const cursor=Number(url.searchParams.get('cursor')??0);
         if(!Number.isSafeInteger(cursor)||cursor<0) return json({error:'مؤشر غير صالح'},400);
-        const result=await db.prepare('SELECT rowid AS cursor, * FROM waste_records WHERE owner = ? AND rowid > ? ORDER BY rowid LIMIT 500').bind(owner,cursor).all();
+        const result=await db.prepare('SELECT rowid AS cursor, * FROM waste_records WHERE owner = ? AND rowid > ?'+(deviceId?' AND device_id = ?':'')+' ORDER BY rowid LIMIT 500').bind(...(deviceId?[owner,cursor,deviceId]:[owner,cursor])).all();
         const rows=result.results??[];
         return json({records:rows.map(r=>({id:r.id,timestamp:r.timestamp,food:r.food,stage:r.stage,reason:r.reason,meal:r.meal,weight:r.grams/1000,unitCost:r.unit_cost,cost:r.cost,source:r.source,note:r.note})),nextCursor:rows.length===500?rows.at(-1).cursor:null});
       }
@@ -98,9 +95,11 @@ export function createWorker(assets={}) {
         const {settings}=await getSettings(db,owner);
         const r=validateRecord(input,settings);
         // Unique owner/id makes retry safe, including a lost successful response.
-        await db.prepare('INSERT INTO waste_records (owner,id,timestamp,food,stage,reason,meal,grams,unit_cost,cost,source,note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(owner,id) DO NOTHING')
-          .bind(owner,r.id,r.timestamp,r.food,r.stage,r.reason,r.meal,Math.round(r.weight*1000),r.unitCost,r.cost,r.source,r.note).run();
+        await db.prepare('INSERT INTO waste_records (owner,id,timestamp,food,stage,reason,meal,grams,unit_cost,cost,source,note,device_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(owner,id) DO NOTHING')
+          .bind(owner,r.id,r.timestamp,r.food,r.stage,r.reason,r.meal,Math.round(r.weight*1000),r.unitCost,r.cost,r.source,r.note,deviceId||null).run();
         const saved=await db.prepare('SELECT * FROM waste_records WHERE owner = ? AND id = ?').bind(owner,r.id).first();
+        if(deviceId&&saved.device_id!==deviceId)return json({error:'معرف التسجيل مستخدم'},409);
+        if(deviceId)await db.prepare('UPDATE kitchen_devices SET last_sync=? WHERE id=?').bind(new Date().toISOString(),deviceId).run();
         return json({record:{id:saved.id,timestamp:saved.timestamp,food:saved.food,stage:saved.stage,reason:saved.reason,meal:saved.meal,weight:saved.grams/1000,unitCost:saved.unit_cost,cost:saved.cost,source:saved.source,note:saved.note}});
       }
       return json({error:'المسار غير موجود'},404);

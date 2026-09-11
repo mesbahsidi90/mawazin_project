@@ -204,7 +204,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   }
 
   function foodImage(food) {
-    return food.photo ? `<img class="uploaded-food-photo" src="${escapeHtml(food.photo)}" alt="" />` : `<span class="food-photo" aria-hidden="true" style="background-position:${(food.image%4)*100/3}% ${Math.floor(food.image/4)*100}%"></span>`;
+    return food.photo ? `<img class="uploaded-food-photo" src="${escapeHtml(stationOnly?food.photo.replace('/api/','/api/station/'):food.photo)}" alt="" />` : `<span class="food-photo" aria-hidden="true" style="background-position:${(food.image%4)*100/3}% ${Math.floor(food.image/4)*100}%"></span>`;
   }
   function renderFoodPicker() {
     const selected=$("#foodPicker").querySelector("input:checked")?.value;
@@ -879,6 +879,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
   }
 
   async function api(path, options={}) {
+    if(stationOnly)path=path.replace('/api/','/api/station/');
     const response=await fetch(path,{...options,credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json',...options.headers},signal:AbortSignal.timeout(12000)});
     if(!response.headers.get('content-type')?.includes('application/json')) throw new Error('الخادم المركزي غير مفعّل في هذه النسخة.');
     const result=await response.json();
@@ -931,6 +932,33 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
       if(!$('#reportsView').hidden) renderReport();
     }
   }
+  async function loadDevices() {
+    if(demo||stationOnly||!account)return;
+    const owner=account.id;
+    try{const result=await api('/api/devices');if(account?.id!==owner)return;
+      $('#deviceList').replaceChildren();
+      for(const device of result.devices){
+        const row=document.createElement('div'),info=document.createElement('span'),button=document.createElement('button');row.className='device-row';
+        const state=device.status==='active'?'مرتبط':device.status==='revoked'?'ملغى':device.pair_expires<Date.now()?'انتهى رمز الربط':'بانتظار الربط';
+        info.textContent=device.name+' · '+state+' · آخر اتصال: '+(device.last_seen?dateFormatter.format(new Date(device.last_seen)):'لم يتصل')+' · آخر إرسال: '+(device.last_sync?dateFormatter.format(new Date(device.last_sync)):'لم يرسل');
+        button.textContent='إلغاء الجهاز';button.className='button ghost';button.disabled=device.status==='revoked';
+        button.onclick=async()=>{if(!confirm('إلغاء وصول '+device.name+'؟ التسجيلات غير المرسلة ستبقى على الجهاز ولن تُرسل بعد الإلغاء.'))return;button.disabled=true;try{await api('/api/devices/'+device.id,{method:'DELETE'});await loadDevices();}catch(error){$('#deviceStatus').textContent=error.message;button.disabled=false;}};
+        row.append(info,button);$('#deviceList').append(row);
+      }
+      if(!result.devices.length)$('#deviceList').textContent='لا توجد أجهزة مرتبطة بعد.';
+    }catch(error){$('#deviceStatus').textContent=error.message;}
+  }
+  function initializeAccess(){
+    const fragment=new URLSearchParams(location.hash.slice(1)),key=stationOnly?'pair':'invite';
+    if(fragment.has(key)){$('#activationCode').value=fragment.get(key);sessionStorage.setItem('mawazin-'+key,fragment.get(key));history.replaceState(null,'',location.pathname);}
+    else $('#activationCode').value=sessionStorage.getItem('mawazin-'+key)||'';
+    if(stationOnly){$('#activationLabel').textContent='رمز ربط الجهاز من مدير المطبخ';$('#activationHint').textContent='افتح رابط الربط الذي أصدره مدير مطبخك، ثم اضغط تفعيل وربط.';$('#adminLink').hidden=true;$('#demoLogin').hidden=true;}
+    else document.querySelector('a[href^="/signin-with-chatgpt"]').href='/signin-with-chatgpt?return_to=%2Fkitchen';
+    $('#activationForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{await api(stationOnly?'/api/pair':'/api/claim-manager',{method:'POST',body:JSON.stringify({code:$('#activationCode').value.trim()})});sessionStorage.removeItem('mawazin-'+key);$('#activationCode').value='';await startAccount();}catch(error){$('#loginStatus').textContent=error.message;}finally{button.disabled=false;}};
+    $('#deviceForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{const result=await api('/api/devices',{method:'POST',body:JSON.stringify({name:$('#deviceName').value})});$('#pairUrl').value=result.url;$('#deviceHandoff').hidden=false;$('#deviceStatus').textContent='الرابط صالح حتى '+new Date(result.expiresAt).toLocaleTimeString('ar-DZ');event.target.reset();await loadDevices();}catch(error){$('#deviceStatus').textContent=error.message;}finally{button.disabled=false;}};
+    $('#refreshDevices').onclick=loadDevices;
+    $('#copyPair').onclick=async()=>{try{await navigator.clipboard.writeText($('#pairUrl').value);$('#deviceStatus').textContent='تم نسخ رابط الجهاز.';}catch{$('#deviceStatus').textContent='انسخ الرابط من الحقل أعلاه.';}};
+  }
   async function startAccount() {
     const attempt=++authAttempt;
     $('#resumeSession').disabled=true;
@@ -938,8 +966,10 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     try {
       const session=await api('/api/session');
       if(!session.user?.id) throw new Error('استجابة حساب غير صالحة');
+      if(session.role==='admin'&&!session.kitchenId){location.assign('/admin');return;}
+      if(session.role==='waiting')throw new Error('لا يوجد مطبخ مرتبط بحسابك. أدخل رمز التفعيل الذي أعطاك الأدمن.');
       const loaded=await api('/api/settings');
-      const kitchenResult=await api('/api/kitchen',{method:'POST',body:'{}'});
+      const kitchenResult=await api('/api/kitchen');
       const queued=await queueList(session.user.id);
       if(attempt!==authAttempt) return;
       kitchen=kitchenResult.kitchen;
@@ -961,7 +991,8 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     $('#resetDemoButton').hidden=!demo;
     $('#reportSource').value=demo?'':'manual';
     applySettings();setInputMode();renderWorkerRecent();renderDashboard();renderNetwork();
-    services=[];if(!stationOnly)loadServices();setWorkerStep(1);switchView('worker');
+    $('#devicePanel').hidden=demo||stationOnly;
+    services=[];if(!stationOnly){loadServices();if(!demo)loadDevices();}setWorkerStep(1);switchView(location.pathname==='/kitchen'?'dashboard':'worker');
   }
   function logout() {
     if(syncing||submitting||photoUploads||$('#settingsSave').disabled||$('#serviceSave').disabled&&servicesReady) {showToast('انتظر إتمام العملية','يمكنك تسجيل الخروج بعد انتهاء محاولة الحفظ.',true);return;}
@@ -1050,6 +1081,7 @@ import {queueList,queueWrite,queueRemove} from './outbox.js';
     ]),'text/csv;charset=utf-8');
   }
   function initializeEnhancements() {
+    initializeAccess();
     if(stationOnly){
       const login=document.querySelector('a[href^="/signin-with-chatgpt"]');
       login.href='/signin-with-chatgpt?return_to=%2Fstation';

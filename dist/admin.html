@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>موازين | إدارة المطابخ</title><link rel="stylesheet" href="/styles.css"></head>
+<body><main class="admin-page">
+<header><p class="eyebrow">موازين / إدارة المنصة</p><h1>المطابخ ومديروها</h1><p>أنشئ المطبخ ثم سلّم مديره رابط التفعيل. يضيف المدير أجهزة مطبخه بعد الدخول.</p><a href="/kitchen">مساحة المطبخ</a> · <a href="/signout-with-chatgpt?return_to=%2Fadmin">تسجيل الخروج</a></header>
+<p id="status" role="status" aria-live="polite"></p>
+<section id="access" class="card" hidden><h2>تفعيل حساب الأدمن</h2><p>سجّل الدخول بحسابك ثم أدخل رمز إعداد المنصة الذي استلمته.</p><a class="button primary" href="/signin-with-chatgpt?return_to=%2Fadmin" target="_top">تسجيل الدخول</a><form id="setup"><label>رمز إعداد الأدمن<input id="setupCode" type="password" required autocomplete="off"></label><button class="button primary">تفعيل الأدمن</button></form></section>
+<section id="management" hidden><article class="card"><h2>إضافة مطبخ</h2><form id="create"><label>اسم المطبخ<input id="name" required maxlength="100" placeholder="مثال: مطبخ فندق الجزائر"></label><label><input id="importPrevious" type="checkbox"> ربط سجلات حسابي السابقة بهذا المطبخ (مرة واحدة)</label><button class="button primary">إنشاء المطبخ</button></form></article>
+<article id="handoff" class="card" hidden><h2>بيانات دخول مدير المطبخ</h2><p>هذا الرابط صالح لمدة 48 ساعة ولمدير واحد. يفتحه المدير ويسجّل الدخول بحسابه في ChatGPT ثم يؤكد التفعيل. لا تشاركه مع شخص آخر.</p><label>رابط التفعيل<input id="inviteUrl" readonly dir="ltr"></label><button id="copy" class="button primary">نسخ الرابط</button><p id="expiry"></p><p>إنشاء رمز جديد لنفس المطبخ يلغي الرموز السابقة غير المستخدمة.</p></article>
+<article class="card"><h2>المطابخ</h2><button id="refresh" class="button ghost">تحديث</button><div id="kitchens" class="admin-kitchens"></div></article></section>
+</main><script type="module" src="/admin.js"></script></body></html>

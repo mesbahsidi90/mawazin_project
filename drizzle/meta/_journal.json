@@ -22,6 +22,13 @@
       "when": 1789140229641,
       "tag": "0002_abandoned_the_fury",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789141873871,
+      "tag": "0003_organic_scalphunter",
+      "breakpoints": true
     }
   ]
 }
